@@ -49,7 +49,10 @@ const server = app.listen(config.port, (err) => {
           : {}),
       },
       auth: config.auth.provider === "firebase" ? { provider: "firebase", projectId: config.auth.projectId } : { provider: "mock" },
-      sessionStore: config.sessionStore.kind,
+      sessionStore:
+        config.sessionStore.kind === "memory"
+          ? { kind: "memory" }
+          : { kind: "redis", transport: config.sessionStore.access.transport, host: new URL(config.sessionStore.access.url).host },
       sessionTtlMinutes: config.sessionTtlMinutes,
       uploadMaxMb: config.uploadMaxBytes / (1024 * 1024),
     },

@@ -170,7 +170,8 @@ export class RedisSessionStore<T extends Record<OutputKind, unknown> = Record<Ou
   }
 
   async close(): Promise<void> {
-    // Nothing is held in this process.
+    // Nothing is held in this process beyond the client's connection, if it keeps one.
+    await this.redis.close();
   }
 
   private async decode(id: string, ownerUid: string, expiresAt: number, hash: Map<string, string>): Promise<SessionRecord<T>> {

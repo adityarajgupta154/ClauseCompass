@@ -11,10 +11,11 @@ import type { ExtractedDocument } from "../extraction";
  * - memory-store.ts holds sessions in this process. One process, one store:
  *   right for local runs, the tests, and any host that runs the API as a
  *   single instance.
- * - redis-store.ts holds them in a Redis database reached over HTTPS, so
- *   every instance of the API sees the same sessions. For hosts that start
- *   an instance per request. Each value is sealed (compressed, then
- *   encrypted under a key only the API holds) before it leaves the process.
+ * - redis-store.ts holds them in a Redis database, reached over Upstash's
+ *   REST API (upstash-rest.ts) or over a socket (redis-socket.ts), so every
+ *   instance of the API sees the same sessions. For hosts that start an
+ *   instance per request. Each value is sealed (compressed, then encrypted
+ *   under a key only the API holds) before it leaves the process.
  *
  * What both promise:
  *

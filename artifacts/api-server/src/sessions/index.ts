@@ -4,10 +4,11 @@ import { getConfig, type Config } from "../lib/config";
 import { logger } from "../lib/logger";
 import { InFlight } from "./in-flight";
 import { MemorySessionStore } from "./memory-store";
+import { RedisSocket } from "./redis-socket";
 import { RedisSessionStore } from "./redis-store";
 import { SealedCodec } from "./sealed";
 import type { SessionRecord, SessionStore } from "./store";
-import { UpstashRest } from "./upstash-rest";
+import { UpstashRest, type RedisCommands } from "./upstash-rest";
 
 export {
   OUTPUT_KINDS,
@@ -53,10 +54,12 @@ export function createSessionStore(config: Config): SessionStore<PreparedOutputs
   if (sessionStore.kind === "memory") {
     return new MemorySessionStore<PreparedOutputs>({ ttlMs, maxSessions: MAX_SESSIONS });
   }
+  const { access } = sessionStore;
+  const redis: RedisCommands = access.transport === "rest" ? new UpstashRest({ url: access.url, token: access.token }) : new RedisSocket({ url: access.url });
   return new RedisSessionStore<PreparedOutputs>({
     ttlMs,
     maxSessions: MAX_SESSIONS,
-    redis: new UpstashRest({ url: sessionStore.url, token: sessionStore.token }),
+    redis,
     codec: new SealedCodec(sessionStore.key),
     onUnreadable: (error) => logger.warn({ err: error }, "a session's stored values could not be opened; the session was dropped (SESSION_STORE_KEY changed?)"),
   });

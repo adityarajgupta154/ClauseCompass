@@ -223,7 +223,7 @@ flowchart TB
 | `lib/api-spec` → `lib/api-zod`, `lib/api-client-react` | Build time | `openapi.yaml` is the contract; Orval generates the Zod schemas the server validates its successful responses with and the React Query hooks and types the browser calls with (over a small custom fetcher that adds the base path and the bearer token) | No hand-written request or response types on either side |
 | Firebase Authentication | External | Google and e-mail/password sign-in in the browser; ID tokens the API verifies against Google's published keys with `jose` | Never sees the document; no Firebase code or service credential runs on the server |
 | Anthropic Messages API | External | Restates selected paragraphs as a forced tool call against a strict JSON schema | Never sees more than the paragraphs selected for one call, the reader's identity or the interview answer |
-| Redis (Upstash, over its REST API) | External, optional | The shared session store when `SESSION_STORE=redis`: one hash per session with a TTL, the owner's uid in the clear for the in-database ownership check, every document and output encrypted by the API before it is written | Holds no readable text; a database of the API's own, since the session cap counts its keys |
+| Redis (Upstash over its REST API, or any Redis over a `redis://` / `rediss://` socket) | External, optional | The shared session store when `SESSION_STORE=redis`: one hash per session with a TTL, the owner's uid in the clear for the in-database ownership check, every document and output encrypted by the API before it is written | Holds no readable text; a database of the API's own, since the session cap counts its keys |
 
 </details>
 
@@ -546,8 +546,9 @@ Read by the API server. The web client is configured at build time from `artifac
 | `FIREBASE_PROJECT_ID` | yes, unless `AUTH_PROVIDER=mock` | – | The Firebase project whose ID tokens the API accepts (`aud` and `iss` of every token). |
 | `AUTH_PROVIDER` | no | `firebase` | `mock` accepts `mock:<uid>` bearer tokens for the tests and the accessibility run; refused when `NODE_ENV=production`. |
 | `SESSION_TTL_MINUTES` | no | `30` | Sliding inactivity window, 1–1440. |
-| `SESSION_STORE` | no | `memory` | Where sessions live: `memory` (this process; one server only) or `redis` (a Redis database every instance shares, over Upstash's REST API). `memory` is refused on Vercel (`VERCEL=1`). |
-| `SESSION_STORE_URL`, `SESSION_STORE_TOKEN` | with `SESSION_STORE=redis` | – | The database's REST URL (https) and token. Unset, the names the Upstash integration on Vercel sets (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) or Upstash's console uses (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) are read instead. |
+| `SESSION_STORE` | no | `memory` | Where sessions live: `memory` (this process; one server only) or `redis` (a Redis database every instance shares). `memory` is refused on Vercel (`VERCEL=1`). |
+| `SESSION_STORE_URL`, `SESSION_STORE_TOKEN` | with `SESSION_STORE=redis` | – | How the database is reached: its REST URL (https, Upstash) with the token, or its `redis://` / `rediss://` URL with the password in it and no token. Unset, the names a host injects are read: `KV_REST_API_URL` + `KV_REST_API_TOKEN` (the Upstash integration on Vercel), `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (Upstash's console), then `REDIS_URL` (Redis Cloud on Vercel, most hosts). |
+| `SESSION_STORE_ALLOW_PLAINTEXT` | no | – | `true` accepts a plain `redis://` URL (no TLS) to a host beyond this machine and its private network, which is otherwise refused at boot: the documents cross the wire sealed either way, but the database password and the owner uids would not. Prefer the database's `rediss://` URL. |
 | `SESSION_STORE_KEY` | with `SESSION_STORE=redis` | – | 32 bytes, as 64 hex characters (`openssl rand -hex 32`) or base64: the key every document and output is encrypted under before it is written to the database. Changing it makes existing sessions unreadable, which is how to retire them. |
 | `UPLOAD_MAX_MB` | no | `10` | The upload cap in MB, 1–10, for a host whose request bodies are smaller than the format's 10 MB (Vercel: 4). Set the web build's `VITE_UPLOAD_MAX_MB` to the same number so the reader is told the limit that is enforced. |
 | `LLM_MODEL` | no | `claude-haiku-4-5` | Any Anthropic Messages API model id. |
@@ -590,7 +591,7 @@ One command, offline, no browser, no API key:
 pnpm test
 ```
 
-Last run on 17 September 2026: 79 files, 957 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
+Last run on 18 September 2026: 80 files, 989 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
 
 | Layer | What it proves |
 | --- | --- |
@@ -598,8 +599,8 @@ Last run on 17 September 2026: 79 files, 957 tests, all passing in about 50 s, r
 | Adversarial (9 files, 105 tests) | Prompt injection inside documents, XSS payloads, hostile files (zip bombs, wrong magic bytes, path-like names), safety-escalation routing, route guards (a signed-out or step-skipping reader is redirected, a foreign `next` address is refused), a second reader on the same browser, a double-pressed sign-in: the policy does not change, no unsourced statement or verdict is rendered, nothing leaks across readers, nothing crashes. |
 | Accessibility (6 files, 34 tests) | Route focus and document titles, the header's settings menu (language, text size, theme, open/close from the keyboard), the loading state of a slow screen, the sign-in screen, read-aloud reading order (DOM-level). |
 | Schema (6 files, 63 tests) | Malformed model output, unknown chunk ids, missing or altered quotes, verdict wording, the model-call cap: the validator rejects and the request degrades, never throws. |
-| Integration (14 files, 170 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process), packet export, simulated API errors: nothing leaks file contents or secrets. |
-| Unit (37 files, 516 tests) | Rule matching for every family, date parsing, clause alignment, decision-flow transitions, language lint, resource registry, the session-store contract against both stores and the sealing of stored values, the client's file check and sample loader. |
+| Integration (14 files, 171 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process, one instance over the REST API and one over the socket) and the health check reporting it, packet export, simulated API errors: nothing leaks file contents or secrets. |
+| Unit (38 files, 547 tests) | Rule matching for every family, date parsing, clause alignment, decision-flow transitions, language lint, resource registry, the session-store contract against both stores over each Redis transport, the socket client and its wire framing, and the sealing of stored values, the client's file check and sample loader. |
 
 `pnpm test:coverage` runs the same suite under V8 coverage over the product code (both services and the libraries; tests, test helpers and the offline stand-ins excluded) and writes an HTML report to `coverage/`. On 17 September 2026: 86.9% of statements, 79.2% of branches, 88.4% of lines. No threshold is enforced; the per-layer table is the gate, the coverage report is where to look for what it does not reach.
 

@@ -9,10 +9,12 @@ import { fixtureParagraphs, loadFixtures } from "../testing/fixtures";
  * The session routes with SESSION_STORE=redis (the configuration a host
  * that runs an instance per request needs): the same app, booted twice as
  * two instances over one database (testing/upstash-fake.ts standing in for
- * Upstash), so that a session opened on one is read, prepared, extended and
- * deleted on the other, and an unreachable database is a 503 the client
- * can retry, not a lost session or a 500. The rest of the resource's
- * behaviour is covered once, in sessions.test.ts, and is the same code.
+ * it), the first reaching it over the REST API and the second over the
+ * socket as REDIS_URL names it, so that a session opened on one is read,
+ * prepared, extended and deleted on the other whichever way each is wired,
+ * and an unreachable database is a 503 the client can retry, not a lost
+ * session or a 500. The rest of the resource's behaviour is covered once,
+ * in sessions.test.ts, and is the same code.
  */
 
 const fake = new FakeUpstash();
@@ -40,10 +42,14 @@ beforeAll(async () => {
   process.env.RATE_LIMIT_PER_MINUTE = "0";
   process.env.RATE_LIMIT_HEAVY_PER_MINUTE = "0";
   process.env.SESSION_STORE = "redis";
+  process.env.SESSION_STORE_KEY = "0f".repeat(32);
   process.env.SESSION_STORE_URL = url;
   process.env.SESSION_STORE_TOKEN = fake.token;
-  process.env.SESSION_STORE_KEY = "0f".repeat(32);
-  instances.push(await bootInstance(), await bootInstance());
+  instances.push(await bootInstance());
+  delete process.env.SESSION_STORE_URL;
+  delete process.env.SESSION_STORE_TOKEN;
+  process.env.REDIS_URL = await fake.listenSocket();
+  instances.push(await bootInstance());
 });
 
 afterAll(async () => {
@@ -121,16 +127,30 @@ describe("sessions over a shared store", () => {
     await call(0, "DELETE", `/sessions/${id}`);
   });
 
-  it("answers 503 store-unavailable with Retry-After when the database cannot be reached, and recovers", async () => {
+  it("answers 503 store-unavailable with Retry-After when the database cannot be reached, over either transport, and recovers", async () => {
     const created = await call(0, "POST", "/sessions", upload({ file: rental.bytes }, "before-signing"));
     const { id } = CreateSessionResponse.parse(created.json());
-    fake.failNext("network");
-    const refused = await call(1, "GET", `/sessions/${id}`);
-    expect(refused.response.status).toBe(503);
-    expect(refused.response.headers.get("retry-after")).toBe("5");
-    expect(refused.json()).toEqual({ error: { code: "store-unavailable", message: expect.stringContaining("Try again") } });
-    expect(refused.text).not.toMatch(/ECONNRESET|socket|fetch failed/);
-    expect((await call(1, "GET", `/sessions/${id}`)).response.status).toBe(200);
+    for (const instance of [0, 1]) {
+      fake.failNext("network");
+      const refused = await call(instance, "GET", `/sessions/${id}`);
+      expect(refused.response.status).toBe(503);
+      expect(refused.response.headers.get("retry-after")).toBe("5");
+      expect(refused.json()).toEqual({ error: { code: "store-unavailable", message: expect.stringContaining("Try again") } });
+      expect(refused.text).not.toMatch(/ECONNRESET|socket|fetch failed/);
+      expect((await call(instance, "GET", `/sessions/${id}`)).response.status).toBe(200);
+    }
     await call(0, "DELETE", `/sessions/${id}`);
+  });
+
+  it("reports the database through the health check: 200 while it answers, 503 store-unavailable while it does not", async () => {
+    for (const instance of [0, 1]) {
+      expect((await call(instance, "GET", "/healthz")).json()).toEqual({ status: "ok" });
+      fake.failNext("network");
+      const down = await call(instance, "GET", "/healthz");
+      expect(down.response.status).toBe(503);
+      expect(down.response.headers.get("retry-after")).toBe("5");
+      expect(down.json()).toMatchObject({ error: { code: "store-unavailable" } });
+      expect((await call(instance, "GET", "/healthz")).response.status).toBe(200);
+    }
   });
 });

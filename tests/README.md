@@ -21,9 +21,9 @@ All suites run offline against the mock LLM adapter; no test may call a hosted m
   ✓ Adversarial         9 files   105 tests  passed
   ✓ Accessibility       6 files    34 tests  passed
   ✓ Schema              6 files    63 tests  passed
-  ✓ Integration        14 files   170 tests  passed
-  ✓ Unit               37 files   516 tests  passed
-  all layers passed · 79 files · 957 tests · 46.6s
+  ✓ Integration        14 files   171 tests  passed
+  ✓ Unit               38 files   547 tests  passed
+  all layers passed · 80 files · 989 tests · 49.1s
 ```
 
 (The run of 17 September 2026.) `pnpm test:coverage` is the same run under V8 coverage of the product code, with a text summary at the end and an HTML report in `coverage/` (git-ignored); the include and exclude lists are in the root `vitest.config.ts`. `pnpm preflight` runs the build, this suite, the client secret scan and the repo-size ceiling in one go, and `.github/workflows/ci.yml` runs the same four steps on GitHub.

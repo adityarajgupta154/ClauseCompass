@@ -9,8 +9,8 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 
 CLIENT=artifacts/clausecompass
-# Names of server-only variables plus the Anthropic key prefix.
-FORBIDDEN='ANTHROPIC_API_KEY|OPENAI_API_KEY|SESSION_SECRET|SESSION_STORE_TOKEN|SESSION_STORE_KEY|KV_REST_API_TOKEN|UPSTASH_REDIS_REST_TOKEN|sk-ant-'
+# Names of server-only variables, the Anthropic key prefix and the Redis URL schemes.
+FORBIDDEN='ANTHROPIC_API_KEY|OPENAI_API_KEY|SESSION_SECRET|SESSION_STORE_TOKEN|SESSION_STORE_KEY|SESSION_STORE_URL|KV_REST_API_TOKEN|UPSTASH_REDIS_REST_TOKEN|REDIS_URL|sk-ant-|redis://|rediss://'
 
 # scan <what> <path>... : exit 1 on a match (status 0) or a grep failure (status >= 2).
 scan() {

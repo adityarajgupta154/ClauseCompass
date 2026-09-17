@@ -230,32 +230,66 @@ describe("parseEnv: session store, port and upload cap", () => {
     expect(config.uploadMaxBytes).toBe(10 * 1024 * 1024);
   });
 
-  it("reads the Redis store's URL, token and key, the key as hex or base64", () => {
+  it("reads the Redis store's REST URL, token and key, the key as hex or base64", () => {
     const config = parseEnv(redis);
-    expect(config.sessionStore).toMatchObject({ kind: "redis", url: "https://db.upstash.io", token: "tok" });
+    expect(config.sessionStore).toMatchObject({ kind: "redis", access: { transport: "rest", url: "https://db.upstash.io", token: "tok" } });
     expect(config.sessionStore.kind === "redis" && config.sessionStore.key.toString("hex")).toBe(key);
     const base64 = Buffer.from(key, "hex").toString("base64");
     const fromBase64 = parseEnv({ ...redis, SESSION_STORE_KEY: base64 }).sessionStore;
     expect(fromBase64.kind === "redis" && fromBase64.key.toString("hex")).toBe(key);
   });
 
-  it("falls back to the names the Upstash integration and console use, hand-set names winning", () => {
-    const integration = { ...withModel, SESSION_STORE: "redis", KV_REST_API_URL: "https://kv.upstash.io", KV_REST_API_TOKEN: "kv-tok", SESSION_STORE_KEY: key };
-    expect(parseEnv(integration).sessionStore).toMatchObject({ url: "https://kv.upstash.io", token: "kv-tok" });
-    const console_ = { ...withModel, SESSION_STORE: "redis", UPSTASH_REDIS_REST_URL: "https://c.upstash.io", UPSTASH_REDIS_REST_TOKEN: "c-tok", SESSION_STORE_KEY: key };
-    expect(parseEnv(console_).sessionStore).toMatchObject({ url: "https://c.upstash.io", token: "c-tok" });
-    expect(parseEnv({ ...integration, SESSION_STORE_URL: "https://own.upstash.io" }).sessionStore).toMatchObject({ url: "https://own.upstash.io", token: "kv-tok" });
+  it("reads a redis:// or rediss:// URL as the database's socket, hand-set or as REDIS_URL, with the password in the URL and no token", () => {
+    const socket = { ...withModel, SESSION_STORE: "redis", SESSION_STORE_URL: "rediss://default:pw@db.example.org:6380", SESSION_STORE_KEY: key };
+    expect(parseEnv(socket).sessionStore).toMatchObject({ kind: "redis", access: { transport: "socket", url: "rediss://default:pw@db.example.org:6380" } });
+    const injected = { ...withModel, SESSION_STORE: "redis", REDIS_URL: "rediss://default:pw@db.example.org:12345", SESSION_STORE_KEY: key };
+    expect(parseEnv(injected).sessionStore).toMatchObject({ access: { transport: "socket", url: "rediss://default:pw@db.example.org:12345" } });
+    expect(() => parseEnv({ ...socket, SESSION_STORE_TOKEN: "tok" })).toThrow(/SESSION_STORE_TOKEN: not read with a redis:\/\/ or rediss:\/\/ SESSION_STORE_URL/);
+    expect(() => parseEnv({ ...injected, REDIS_URL: "redis://db.example.org/sessions" })).toThrow(/REDIS_URL: must be a redis:\/\/ or rediss:\/\/ URL \(the path must be empty or a database number\)/);
+    expect(() => parseEnv({ ...injected, REDIS_URL: "rediss://default:p%zz@db.example.org" })).toThrow(/REDIS_URL: must be a redis:\/\/ or rediss:\/\/ URL \(the user name or password is not valid percent-encoding\)/);
   });
 
-  it("refuses the Redis store without its URL, token or key, naming each, and never prints the token or the key", () => {
+  it("takes a plain redis:// URL to this machine or its private network as it is, and to any other host only when SESSION_STORE_ALLOW_PLAINTEXT says so", () => {
+    const socket = (url: string, extra: Record<string, string> = {}) => ({ ...withModel, SESSION_STORE: "redis", REDIS_URL: url, SESSION_STORE_KEY: key, ...extra });
+    expect(parseEnv(socket("redis://default:pw@localhost:6379")).sessionStore).toMatchObject({ access: { transport: "socket" } });
+    expect(parseEnv(socket("redis://default:pw@10.0.0.5:6379")).sessionStore).toMatchObject({ access: { transport: "socket" } });
+    const remote = "redis://default:pw@redis-1.example.redns.redis-cloud.com:12345";
+    const refusal = /REDIS_URL: a redis:\/\/ URL \(no TLS\) to a host beyond this machine and its private network would send the database password and the owners' uids in the clear.*rediss:\/\/.*SESSION_STORE_ALLOW_PLAINTEXT=true/;
+    expect(() => parseEnv(socket(remote))).toThrow(refusal);
+    expect(() => parseEnv(socket(remote))).not.toThrow(/pw@/);
+    expect(() => parseEnv(socket(remote, { SESSION_STORE_ALLOW_PLAINTEXT: "false" }))).toThrow(refusal);
+    expect(parseEnv(socket(remote, { SESSION_STORE_ALLOW_PLAINTEXT: "true" })).sessionStore).toMatchObject({ access: { transport: "socket", url: remote } });
+    // The same rule for a hand-set URL, under its own name.
+    expect(() => parseEnv({ ...withModel, SESSION_STORE: "redis", SESSION_STORE_URL: remote, SESSION_STORE_KEY: key })).toThrow(/SESSION_STORE_URL: a redis:\/\/ URL \(no TLS\)/);
+    expect(() => parseEnv(socket(remote, { SESSION_STORE_ALLOW_PLAINTEXT: "yes" }))).toThrow(/SESSION_STORE_ALLOW_PLAINTEXT: Invalid enum value/);
+  });
+
+  it("falls back to the names the Upstash integration and console use, hand-set names winning and REST before the socket", () => {
+    const integration = { ...withModel, SESSION_STORE: "redis", KV_REST_API_URL: "https://kv.upstash.io", KV_REST_API_TOKEN: "kv-tok", SESSION_STORE_KEY: key };
+    expect(parseEnv(integration).sessionStore).toMatchObject({ access: { transport: "rest", url: "https://kv.upstash.io", token: "kv-tok" } });
+    const console_ = { ...withModel, SESSION_STORE: "redis", UPSTASH_REDIS_REST_URL: "https://c.upstash.io", UPSTASH_REDIS_REST_TOKEN: "c-tok", SESSION_STORE_KEY: key };
+    expect(parseEnv(console_).sessionStore).toMatchObject({ access: { transport: "rest", url: "https://c.upstash.io", token: "c-tok" } });
+    expect(parseEnv({ ...integration, SESSION_STORE_URL: "https://own.upstash.io" }).sessionStore).toMatchObject({ access: { url: "https://own.upstash.io", token: "kv-tok" } });
+    // Upstash's integration sets REDIS_URL beside its REST names; the REST pair is used.
+    expect(parseEnv({ ...integration, REDIS_URL: "rediss://default:pw@kv.upstash.io:6379" }).sessionStore).toMatchObject({ access: { transport: "rest", url: "https://kv.upstash.io" } });
+    // A hand-set socket URL beats an injected REST pair, and an injected token is then left alone.
+    expect(parseEnv({ ...integration, SESSION_STORE_URL: "rediss://default:pw@own.example.org:6379" }).sessionStore).toMatchObject({ access: { transport: "socket" } });
+  });
+
+  it("refuses the Redis store without its URL, token or key, naming each, and never prints the token, the password or the key", () => {
     const attempt = () => parseEnv({ ...withModel, SESSION_STORE: "redis", SESSION_STORE_TOKEN: "secret-token" });
-    expect(attempt).toThrow(/SESSION_STORE_URL: required when SESSION_STORE=redis/);
+    expect(attempt).toThrow(/SESSION_STORE_URL: required when SESSION_STORE=redis.*REDIS_URL/);
     expect(attempt).toThrow(/SESSION_STORE_KEY: required when SESSION_STORE=redis.*openssl rand -hex 32/);
     expect(attempt).not.toThrow(/secret-token/);
+    const noToken = () => parseEnv({ ...withModel, SESSION_STORE: "redis", SESSION_STORE_URL: "https://db.upstash.io", SESSION_STORE_KEY: key });
+    expect(noToken).toThrow(/SESSION_STORE_TOKEN: required with an https SESSION_STORE_URL/);
     const badKey = () => parseEnv({ ...redis, SESSION_STORE_KEY: "too-short-secret" });
     expect(badKey).toThrow(/SESSION_STORE_KEY: must be 32 bytes as 64 hex characters/);
     expect(badKey).not.toThrow(/too-short-secret/);
-    expect(() => parseEnv({ ...redis, SESSION_STORE_URL: "http://db.upstash.io" })).toThrow(/SESSION_STORE_URL: must be an https URL/);
+    expect(() => parseEnv({ ...redis, SESSION_STORE_URL: "http://db.upstash.io" })).toThrow(/SESSION_STORE_URL: must be the database's https REST URL \(http only for localhost\) or its redis:\/\/ or rediss:\/\/ URL/);
+    const badSocket = () => parseEnv({ ...withModel, SESSION_STORE: "redis", REDIS_URL: "redis://default:secret-pw@host?x=1", SESSION_STORE_KEY: key });
+    expect(badSocket).toThrow(/REDIS_URL: must be a redis:\/\/ or rediss:\/\/ URL/);
+    expect(badSocket).not.toThrow(/secret-pw/);
   });
 
   it("refuses the memory store on Vercel, where an instance per request shares nothing, and the stand-ins too", () => {

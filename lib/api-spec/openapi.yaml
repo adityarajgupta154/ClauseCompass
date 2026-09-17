@@ -27,7 +27,10 @@ paths:
       security: []
       tags: [health]
       summary: Health check
-      description: Returns server health status
+      description: >-
+        Returns server health status. The session store is asked for its
+        count on every call, so a database that cannot be reached answers
+        here as the 503 the session routes would give.
       responses:
         "200":
           description: Healthy
@@ -35,6 +38,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: The session store did not answer; retry after the `Retry-After` seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /documents/extract:
     post:
       operationId: extractDocument

@@ -9,7 +9,7 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
+ * Returns server health status. The session store is asked for its count on every call, so a database that cannot be reached answers here as the 503 the session routes would give.
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({

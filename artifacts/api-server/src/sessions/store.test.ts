@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExtractedDocument } from "../extraction";
 import { FakeUpstash } from "../testing/upstash-fake";
 import { MemorySessionStore } from "./memory-store";
+import { RedisSocket } from "./redis-socket";
 import { RedisSessionStore } from "./redis-store";
 import { SealedCodec, SealedValueError } from "./sealed";
 import { SessionStoreFullError, SessionStoreUnavailableError, type CreateSessionInput, type SessionStore } from "./store";
@@ -11,11 +12,12 @@ import { UpstashRest } from "./upstash-rest";
 
 /**
  * The store contract (store.ts), run against both stores: the memory store
- * as it is, and the Redis store through the real REST client against the
- * in-process stand-in for the Upstash API (testing/upstash-fake.ts). What
- * differs between them is tested on its own below: the Redis store's
- * sealing of every value, its answer when the database is unreachable, and
- * that two store instances over one database see the same sessions.
+ * as it is, and the Redis store through each real client (the REST client
+ * and the socket client) against the in-process stand-in for the database
+ * (testing/upstash-fake.ts). What differs between them is tested on its own
+ * below: the Redis store's sealing of every value, its answer when the
+ * database is unreachable, and that two store instances over one database,
+ * whichever way each reaches it, see the same sessions.
  */
 
 const document: ExtractedDocument = {
@@ -47,7 +49,7 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-const harnesses: Record<"memory" | "redis", (start: number, ttlMs?: number, maxSessions?: number) => Promise<Harness>> = {
+const harnesses: Record<"memory" | "redis" | "redis-socket", (start: number, ttlMs?: number, maxSessions?: number) => Promise<Harness>> = {
   async memory(start, ttlMs = 60_000, maxSessions = 3) {
     let now = start;
     const store = new MemorySessionStore<Outputs>({ ttlMs, maxSessions, now: () => now, sweepEveryMs: 1_000 });
@@ -70,10 +72,29 @@ const harnesses: Record<"memory" | "redis", (start: number, ttlMs?: number, maxS
     cleanups.push(close);
     return { store, tick: (ms) => (now += ms), close };
   },
+  async "redis-socket"(start, ttlMs = 60_000, maxSessions = 3) {
+    let now = start;
+    const fake = new FakeUpstash(() => now);
+    const url = await fake.listenSocket();
+    const store = new RedisSessionStore<Outputs>({
+      ttlMs,
+      maxSessions,
+      now: () => now,
+      redis: new RedisSocket({ url }),
+      codec: new SealedCodec(KEY),
+    });
+    const close = async () => {
+      await store.close();
+      await fake.close();
+    };
+    cleanups.push(close);
+    return { store, tick: (ms) => (now += ms), close };
+  },
 };
 
-describe.each(["memory", "redis"] as const)("SessionStore contract: %s", (kind) => {
-  const storeAt = harnesses[kind];
+describe.each(["memory", "redis", "redis-socket"] as const)("SessionStore contract: %s", (harness) => {
+  const storeAt = harnesses[harness];
+  const kind = harness === "memory" ? "memory" : "redis";
 
   it("creates a session with a fresh id, the documents, and an expiry one TTL out", async () => {
     const { store } = await storeAt(1_000);
@@ -251,6 +272,24 @@ describe("RedisSessionStore on its own", () => {
     expect(fake.pttl(`session:${id}`)).toBe(60_000);
     expect(await second.deleteOwned(id, "reader-1")).toBe(true);
     expect(await first.find(id, "reader-1")).toEqual({ outcome: "missing" });
+  });
+
+  it("is shared across transports: a session written over the REST API is read, extended and deleted over the socket, and back", async () => {
+    const { fake, open, tick } = await redisAt();
+    const overRest = open();
+    const overSocket = new RedisSessionStore<Outputs>({ ttlMs: 60_000, maxSessions: 3, redis: new RedisSocket({ url: await fake.listenSocket() }), codec: new SealedCodec(KEY) });
+    cleanups.push(() => overSocket.close());
+    const { id } = await overRest.create(input);
+    await overRest.saveOutput(id, "reader-1", "documentMap", { fields: 6 });
+    tick(20_000);
+    const found = await overSocket.find(id, "reader-1");
+    expect(found.outcome === "found" && found.session.outputs).toEqual({ documentMap: { fields: 6 } });
+    expect(fake.pttl(`session:${id}`)).toBe(60_000);
+    const reverse = await overSocket.create(input);
+    expect((await overRest.find(reverse.id, "reader-1")).outcome).toBe("found");
+    expect(await overSocket.deleteOwned(id, "reader-1")).toBe(true);
+    expect(await overRest.find(id, "reader-1")).toEqual({ outcome: "missing" });
+    expect(await overRest.size()).toBe(1);
   });
 
   it("drops a session whose values will not open under this key, and says so once", async () => {

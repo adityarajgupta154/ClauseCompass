@@ -19,8 +19,15 @@ export type RedisCommand = readonly RedisArg[];
 export interface RedisCommands {
   command(command: RedisCommand): Promise<unknown>;
   pipeline(commands: readonly RedisCommand[]): Promise<unknown[]>;
-  /** The commands as one MULTI/EXEC: all applied or none. */
+  /**
+   * The commands as one MULTI/EXEC: run together, with no other client's
+   * command between them, and none of them if Redis refuses one at queue
+   * time. As in Redis, a command that fails while running does not undo the
+   * others; its error is thrown and the rest have been applied.
+   */
   transaction(commands: readonly RedisCommand[]): Promise<unknown[]>;
+  /** Lets go of whatever the client holds open; the store calls it when it closes. */
+  close(): Promise<void>;
 }
 
 export interface UpstashRestOptions {
@@ -63,6 +70,10 @@ export class UpstashRest implements RedisCommands {
 
   transaction(commands: readonly RedisCommand[]): Promise<unknown[]> {
     return this.batch("/multi-exec", commands);
+  }
+
+  async close(): Promise<void> {
+    // Nothing is held open between requests.
   }
 
   private async batch(path: string, commands: readonly RedisCommand[]): Promise<unknown[]> {
