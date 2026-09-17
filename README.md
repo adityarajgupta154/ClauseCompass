@@ -53,7 +53,7 @@ Built for the Hack2Skill 2026 hackathon. The requirements this build follows are
 | **The map** | Six fields: Who is bound by it · How long it lasts · Money · Duties and restrictions · How it can end · If there is a dispute, plus the dates timeline; every statement opens to the paragraph it rests on. |
 | **What the model sees** | Only the paragraphs selected for one map field or one rule family, under a per-call cap; never the reader's identity or the interview answer. |
 | **What the model may not do** | Judge, predict or advise. A validator checks every sentence against its cited paragraph before it is shown; a sentence that fails twice is withheld and counted. |
-| **What the server keeps** | Extracted text and prepared outputs, in memory, for a sliding 30 minutes or until "Delete my document now"; never the uploaded bytes, never a database. |
+| **What the server keeps** | Extracted text and prepared outputs, for a sliding 30 minutes or until "Delete my document now"; never the uploaded bytes. In the API process's memory by default; on a host that runs an instance per request, in a Redis database it owns, every document and output encrypted before it is written (see [Sessions](#request-handling-limits-and-session-lifecycle)). |
 | **Handoff** | A printable preparation packet and a page of official services: Tele-Law, NALSA legal aid, the 1915, 1930, 112, 181 and 1098 helplines, SHe-Box. |
 | **Stack** | React 19 + Vite web client, Express 5 API on Node 22.13+, shared pure-TypeScript libraries, Firebase Authentication for sign-in, the Anthropic Messages API for the restatements. |
 
@@ -215,7 +215,7 @@ flowchart TB
 | Component | Runtime | Responsibility | Never does |
 | --- | --- | --- | --- |
 | Web client (`artifacts/clausecompass`) | Browser; React 19, Vite 7, TypeScript, Tailwind CSS 4, wouter, TanStack Query | Stage choice, sign-in, upload pre-checks, the one interview question and its safety scan, rendering every statement next to its source, the packet, language/text-size/theme settings, read-aloud | Never sends the interview answer to the server; never renders a statement whose source chunk it cannot find; never holds a server secret |
-| API server (`artifacts/api-server`) | Node 22.13+; Express 5, bundled with esbuild | Token verification, file admission, extraction in worker threads, the in-memory session store, deterministic evidence selection, the model call and its validator | Never stores uploaded bytes, never writes a document to disk or a database, never runs without a model configured |
+| API server (`artifacts/api-server`) | Node 22.13+; Express 5, bundled with esbuild | Token verification, file admission, extraction in worker threads, the session store (in memory, or Redis with every document and output encrypted), deterministic evidence selection, the model call and its validator | Never stores uploaded bytes, never writes a document to disk or in the clear to a database, never runs without a model configured |
 | Extraction workers | `worker_threads`, one per document | pdf.js (PDF), mammoth (DOCX), plain text; paragraphs with page, paragraph number and printed clause label | Never runs longer than 30 s or past a 256 MB V8 heap; a crash takes down only its own thread |
 | `lib/rules` | Shared, pure TypeScript | The versioned clause-rule registry (34 rules, five families), the rule engine, stage plans, the decision-flow state machine, safety cues, date parsing, clause labels | No I/O, no model |
 | `lib/grounding` | Shared, pure TypeScript | Chunk and claim types, the model-output schema, the validator (citation, verbatim quote, prompt echo, responsible-language register), tokenisation and a BM25 retriever (built, not yet wired to a screen) | No I/O, no model |
@@ -223,6 +223,7 @@ flowchart TB
 | `lib/api-spec` → `lib/api-zod`, `lib/api-client-react` | Build time | `openapi.yaml` is the contract; Orval generates the Zod schemas the server validates its successful responses with and the React Query hooks and types the browser calls with (over a small custom fetcher that adds the base path and the bearer token) | No hand-written request or response types on either side |
 | Firebase Authentication | External | Google and e-mail/password sign-in in the browser; ID tokens the API verifies against Google's published keys with `jose` | Never sees the document; no Firebase code or service credential runs on the server |
 | Anthropic Messages API | External | Restates selected paragraphs as a forced tool call against a strict JSON schema | Never sees more than the paragraphs selected for one call, the reader's identity or the interview answer |
+| Redis (Upstash, over its REST API) | External, optional | The shared session store when `SESSION_STORE=redis`: one hash per session with a TTL, the owner's uid in the clear for the in-database ownership check, every document and output encrypted by the API before it is written | Holds no readable text; a database of the API's own, since the session cap counts its keys |
 
 </details>
 
@@ -263,7 +264,7 @@ sequenceDiagram
   API->>API: verify token (jose, JWKS) · budgets · admission gate · name, size and magic-byte checks
   API->>W: file bytes → fresh thread (30 s, 256 MB)
   W-->>API: paragraphs with page · paragraph · clause label
-  API->>API: keep the chunks in memory, drop the bytes
+  API->>API: keep the chunks in the session store, drop the bytes
   API-->>R: 201 { id, expiresAt, documents[] }
   R->>R: interview answer scanned for safety cues (never sent to the server)
   R->>API: POST /api/sessions/:id/document-map
@@ -390,7 +391,7 @@ flowchart LR
 
 </details>
 
-A session lives in the API process's memory from the upload until the reader deletes it or 30 idle minutes pass:
+A session lives from the upload until the reader deletes it or 30 idle minutes pass. Where it lives is the `SESSION_STORE` setting: `memory` (the default) keeps it in the API process, for one server; `redis` keeps it in a Redis database that every instance of the API shares, for a host that may run each request on a different instance. In either store the database or the process holds only the extracted text and the prepared outputs, never the uploaded bytes; in the Redis store every document and output is encrypted (AES-256-GCM, a key only the API has) before it is written, so the database itself holds no readable text, and the ownership check runs inside the database so that nobody else's request can extend or read a session.
 
 <details>
 <summary>The session lifecycle, as a diagram</summary>
@@ -401,13 +402,13 @@ stateDiagram-v2
   Open --> Open : any request that touches it slides the 30-minute window
   Open --> Deleted : DELETE /api/sessions/:id → 204 · text dropped, model calls aborted
   Open --> Expired : 30 idle minutes · refused on the next request
-  Expired --> [*] : sweeper frees the memory (runs every minute)
+  Expired --> [*] : memory store: a sweep frees it (every minute) · Redis store: the key's TTL removes it
   Deleted --> [*]
 ```
 
 </details>
 
-The store holds at most 100 sessions; a session belongs to the uid that opened it; another reader's read or analysis request for it is answered 404, exactly like an unknown or expired id, and a delete answers 204 either way, so ids cannot be probed. Delete aborts in-flight model calls through the session's abort signal.
+The store holds at most 100 sessions; a session belongs to the uid that opened it; another reader's read or analysis request for it is answered 404, exactly like an unknown or expired id, and a delete answers 204 either way, so ids cannot be probed. Delete aborts the model calls in flight on the instance that received it, and an output whose session was deleted meanwhile is not kept, on any instance. A Redis store that cannot be reached answers 503 with `Retry-After`; nothing is served from a guess.
 
 ## API
 
@@ -455,7 +456,7 @@ Errors are always `{ error: { code, message } }` with a stable code and a messag
 │           ├── auth/           Firebase ID-token verification (jose), offline stand-in
 │           ├── uploads/        multipart handling, file-name rules
 │           ├── extraction/     worker isolation, sniffing, limits, pdf / docx / txt, paragraphs
-│           ├── sessions/       the in-memory store, TTL, sweeper
+│           ├── sessions/       the store contract, the memory and Redis stores, sealing, the in-flight registry
 │           ├── analysis/       chunks, document map, dates, parties, review prompts, compare/
 │           ├── llm/            prompt, claims, Anthropic adapter, concurrency, offline stand-in
 │           └── lib/            config (validated at boot), logger, URL redaction
@@ -490,11 +491,11 @@ Package boundaries: `lib/rules`, `lib/grounding` and `lib/resources` are pure Ty
 - **Information, not advice.** The product describes what a document says and where. It does not say whether a clause is enforceable, what will happen, whether you qualify for a service, or what to do. The model is not allowed to either: the validator rejects conclusory sentences and the prompt forbids citing laws or judgments. Confirm eligibility and availability of any service with that service.
 - **Documents.** Text-layer PDF, DOCX and TXT up to 10 MB; PDFs up to 50 pages; 30,000 words. No OCR, so scans and photographed pages are refused (PRD §3 keeps them out of the MVP because OCR errors are a safety risk here). The document itself is expected to be in English; the clause rules and date detector are written for English contract wording.
 - **Language.** English and Hinglish are available for the interface copy. Document excerpts, the model's statements and the packet stay in English. Read-aloud uses the browser's own `en-IN` voice, so its quality depends on the device.
-- **Sessions.** Memory only, on one server process: no database, no resume after a page reload (the session id is kept, but the browser deletes the orphaned session and asks for the file again). Sessions expire 30 minutes after their last use.
+- **Sessions.** No resume after a page reload (the session id is kept, but the browser deletes the orphaned session and asks for the file again). Sessions expire 30 minutes after their last use. The default store is the API process's memory, for one server; a host that runs several instances needs `SESSION_STORE=redis` and a Redis database of the API's own ([docs/deployment.md](docs/deployment.md)).
 - **Model dependence.** The plain-language statements in the map and review prompts need the Anthropic Messages API. If it is unreachable, the map shows the located passages in the document's own words and the review prompts fall back to the registry's wording, each saying why; nothing is invented, and the server does not keep that output, so the next request for it tries again. Everything else (timeline, comparison, safety flow, helplines) works without it.
 - **No free-text question answering.** Retrieval is rule-driven; there is no "ask anything about this document" box. A BM25 retriever exists in `lib/grounding` but nothing uses it yet.
 - **Sign-in is identity, not persistence.** The account says whose session it is; it does not keep documents between visits, and the server decodes the ID token only to check it and keeps nothing about the reader but the uid. Sign-in needs the Firebase project's sign-in providers enabled and the serving domain in its authorized-domains list.
-- **One process, in-memory limits.** The per-client request budgets, the analysis gate and the model-call cap all live in the server process, like the sessions; running several instances would give each its own budgets and split readers' sessions between them. Budgets are charged per client address, and which address that is depends on `TRUST_PROXY`: by default the socket's peer (forged forwarding headers are ignored, but every reader behind one proxy shares one budget); set to a hop count or, behind an edge proxy that rewrites the header, `true`, the forwarded address. Readers behind one shared address share one budget either way.
+- **Per-process limits.** The per-client request budgets, the analysis gate, the model-call cap and the sharing of one analysis between concurrent requests all live in the server process; with several instances each has its own budgets, and only the sessions are shared (through the Redis store). Budgets are charged per client address, and which address that is depends on `TRUST_PROXY`: by default the socket's peer (forged forwarding headers are ignored, but every reader behind one proxy shares one budget); set to a hop count or, behind an edge proxy that rewrites the header, `true`, the forwarded address. Readers behind one shared address share one budget either way.
 
 ## Setup
 
@@ -528,11 +529,11 @@ Sign-in needs a Firebase project with **Google** and **Email/Password** enabled 
 
 ### Build and production
 
-`pnpm dev` builds and starts the API on 8080 and the Vite dev server on 5173 with `/api` proxied to the API. `pnpm build` type-checks everything and builds both services; the web build needs the same two variables the dev runner sets, so run it as `BASE_PATH=/ PORT=5173 pnpm build`. `pnpm typecheck` runs the checks alone. In production, run `node dist/index.mjs` in `artifacts/api-server` with the variables below in its environment and serve `artifacts/clausecompass/dist/public` from the same origin with `/api` forwarded to it.
+`pnpm dev` builds and starts the API on 8080 and the Vite dev server on 5173 with `/api` proxied to the API. `pnpm build` type-checks everything and builds both services; the web build needs the same two variables the dev runner sets, so run it as `BASE_PATH=/ PORT=5173 pnpm build`. `pnpm typecheck` runs the checks alone. In production, run `node dist/index.mjs` in `artifacts/api-server` with the variables below in its environment and serve `artifacts/clausecompass/dist/public` from the same origin with `/api` forwarded to it. For Vercel, where the API runs as a function and sessions must live in a shared store, the repo carries `vercel.json` and `api/index.mjs`; [docs/deployment.md](docs/deployment.md) has the steps.
 
 ### Environment variables
 
-Read by the API server. The web client is configured at build time from `artifacts/clausecompass/.env`: the Firebase web config (`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`) and, optionally, `VITE_SITE_URL` (the public address, for the canonical link, social metadata and sitemap), `VITE_FEEDBACK_URL` (a feedback link in the settings menu; without it the row is not shown) and `VITE_AUTH_PROVIDER=mock` (tests and the accessibility run only; refused by a production build); its dev server and build otherwise read `PORT`, `BASE_PATH` and the optional `API_PROXY_TARGET`, which `pnpm dev` sets.
+Read by the API server. The web client is configured at build time from `artifacts/clausecompass/.env`: the Firebase web config (`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`) and, optionally, `VITE_SITE_URL` (the public address, for the canonical link, social metadata and sitemap), `VITE_UPLOAD_MAX_MB` (1–10; the upload cap the reader is told, set to the API's `UPLOAD_MAX_MB` on a host with smaller request bodies), `VITE_FEEDBACK_URL` (a feedback link in the settings menu; without it the row is not shown) and `VITE_AUTH_PROVIDER=mock` (tests and the accessibility run only; refused by a production build); its dev server and build otherwise read `PORT`, `BASE_PATH` and the optional `API_PROXY_TARGET`, which `pnpm dev` sets.
 
 <details>
 <summary>The table: every variable the API server reads, whether it is required, its default and what it does</summary>
@@ -541,10 +542,14 @@ Read by the API server. The web client is configured at build time from `artifac
 | --- | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | yes, unless the gateway pair below is set | – | Server-side only. A key set here always wins. |
 | `AI_INTEGRATIONS_ANTHROPIC_BASE_URL`, `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | only as the alternative to a key | – | An Anthropic-compatible gateway (base URL plus the credential it expects); the adapter posts to `<base>/v1/messages` exactly as it does against `api.anthropic.com`. Used only when `ANTHROPIC_API_KEY` is unset; both must be present together. |
-| `PORT` | yes | – | `pnpm dev` sets it (8080). |
+| `PORT` | yes for the listener | – | `pnpm dev` sets it (8080). Not read by the Vercel entry, which starts no listener. |
 | `FIREBASE_PROJECT_ID` | yes, unless `AUTH_PROVIDER=mock` | – | The Firebase project whose ID tokens the API accepts (`aud` and `iss` of every token). |
 | `AUTH_PROVIDER` | no | `firebase` | `mock` accepts `mock:<uid>` bearer tokens for the tests and the accessibility run; refused when `NODE_ENV=production`. |
 | `SESSION_TTL_MINUTES` | no | `30` | Sliding inactivity window, 1–1440. |
+| `SESSION_STORE` | no | `memory` | Where sessions live: `memory` (this process; one server only) or `redis` (a Redis database every instance shares, over Upstash's REST API). `memory` is refused on Vercel (`VERCEL=1`). |
+| `SESSION_STORE_URL`, `SESSION_STORE_TOKEN` | with `SESSION_STORE=redis` | – | The database's REST URL (https) and token. Unset, the names the Upstash integration on Vercel sets (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) or Upstash's console uses (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) are read instead. |
+| `SESSION_STORE_KEY` | with `SESSION_STORE=redis` | – | 32 bytes, as 64 hex characters (`openssl rand -hex 32`) or base64: the key every document and output is encrypted under before it is written to the database. Changing it makes existing sessions unreadable, which is how to retire them. |
+| `UPLOAD_MAX_MB` | no | `10` | The upload cap in MB, 1–10, for a host whose request bodies are smaller than the format's 10 MB (Vercel: 4). Set the web build's `VITE_UPLOAD_MAX_MB` to the same number so the reader is told the limit that is enforced. |
 | `LLM_MODEL` | no | `claude-haiku-4-5` | Any Anthropic Messages API model id. |
 | `LLM_PROVIDER` | no | `anthropic` | `mock` exists for the tests and the accessibility run; refused when `NODE_ENV=production`. |
 | `ANTHROPIC_BASE_URL` | no | `https://api.anthropic.com` | Own-key mode only. HTTPS, or HTTP on localhost. |
@@ -585,7 +590,7 @@ One command, offline, no browser, no API key:
 pnpm test
 ```
 
-Last run on 17 September 2026: 77 files, 922 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
+Last run on 17 September 2026: 79 files, 957 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
 
 | Layer | What it proves |
 | --- | --- |
@@ -593,8 +598,8 @@ Last run on 17 September 2026: 77 files, 922 tests, all passing in about 50 s, r
 | Adversarial (9 files, 105 tests) | Prompt injection inside documents, XSS payloads, hostile files (zip bombs, wrong magic bytes, path-like names), safety-escalation routing, route guards (a signed-out or step-skipping reader is redirected, a foreign `next` address is refused), a second reader on the same browser, a double-pressed sign-in: the policy does not change, no unsourced statement or verdict is rendered, nothing leaks across readers, nothing crashes. |
 | Accessibility (6 files, 34 tests) | Route focus and document titles, the header's settings menu (language, text size, theme, open/close from the keyboard), the loading state of a slow screen, the sign-in screen, read-aloud reading order (DOM-level). |
 | Schema (6 files, 63 tests) | Malformed model output, unknown chunk ids, missing or altered quotes, verdict wording, the model-call cap: the validator rejects and the request degrades, never throws. |
-| Integration (13 files, 166 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, packet export, simulated API errors: nothing leaks file contents or secrets. |
-| Unit (36 files, 485 tests) | Rule matching for every family, date parsing, clause alignment, decision-flow transitions, language lint, resource registry, the client's file check and sample loader. |
+| Integration (14 files, 170 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process), packet export, simulated API errors: nothing leaks file contents or secrets. |
+| Unit (37 files, 516 tests) | Rule matching for every family, date parsing, clause alignment, decision-flow transitions, language lint, resource registry, the session-store contract against both stores and the sealing of stored values, the client's file check and sample loader. |
 
 `pnpm test:coverage` runs the same suite under V8 coverage over the product code (both services and the libraries; tests, test helpers and the offline stand-ins excluded) and writes an HTML report to `coverage/`. On 17 September 2026: 86.9% of statements, 79.2% of branches, 88.4% of lines. No threshold is enforced; the per-layer table is the gate, the coverage report is where to look for what it does not reach.
 
@@ -615,7 +620,7 @@ Details, including how to run one layer, are in [tests/README.md](tests/README.m
 - **Input.** File names with path separators or control characters are refused (400); files over 10 MB (413); files whose bytes do not match the claimed type (415); encrypted, malformed or text-less documents (422). DOCX archives are inflated under an entry and size budget before they are opened.
 - **Isolation.** Every document is parsed in a fresh worker thread with a 30-second timeout and a 256 MB heap, so a crashing parser takes down only its own worker. The process's resident memory is watched while workers run; under pressure every running extraction is stopped and answered with an error instead of the server dying. An admission gate (32 uploads buffering, 2 extracting, 16 waiting) answers 503 instead of queueing without bound.
 - **Identity.** Every document and session route needs a Firebase ID token, verified on the server with a JWT library against Google's published signing keys (issuer and audience pinned to the project, RS256 only, expiry enforced); no Firebase code or service-account credential runs on the server. A session belongs to the uid that opened it; another reader's read or analysis request for it is a 404 and a delete answers 204 either way, so session ids cannot be probed, and only the owner's delete does anything. Sign-out asks the server to delete the open session before the identity is dropped (if that call fails the session is unreachable anyway and expires on its own).
-- **Retention.** Uploaded bytes are never stored; only extracted text and prepared outputs live in memory, until the user deletes them or 30 idle minutes pass (an expired session is refused on the next request and its memory is freed by a sweep that runs every minute, so the bytes are gone within 31 minutes of the last use). Delete aborts in-flight model calls. No database, no analytics, no third-party scripts in the page; fonts ship with the bundle, so the only external requests the browser makes are to Firebase Authentication for sign-in and token refresh (which never sees the document).
+- **Retention.** Uploaded bytes are never stored; only extracted text and prepared outputs live in the session store, until the user deletes them or 30 idle minutes pass (an expired session is refused on the next request; the memory store frees it in a sweep that runs every minute, so it is gone within 31 minutes of the last use, and the Redis store's key expires on the database's clock). In the Redis store every document and output is encrypted with a key the database never sees; only the owner's uid and the stage are readable there, and the encryption is bound to that owner, so rewriting the uid in the database opens nothing. Delete aborts the model calls in flight on the instance that received it, and a finished output is never kept for a session that is gone. No analytics, no third-party scripts in the page; fonts ship with the bundle, so the only external requests the browser makes are to Firebase Authentication for sign-in and token refresh (which never sees the document).
 - **Model boundary.** The prompt marks document excerpts as data, not instructions; the model can only return a tool call matching a strict schema; the validator rejects unknown citations, altered quotes, echoes of the prompt and conclusory language, and a failed statement is withheld rather than repaired into an answer. The model sees only the paragraphs selected for one field or one review batch, under a per-call cap.
 - **Output.** Every string is rendered as text; the adversarial suite plants script payloads in documents and checks that none executes. API errors are stable `{ error: { code, message } }` objects with no stack traces or file content; request logs carry redacted URLs and no file names.
 - **Secrets.** The API key is read on the server only; `pnpm check:client-secrets` scans the client source and production bundle for secret names and key prefixes and fails on a match. The Firebase web config in the client is not a secret (it identifies the project; the project's authorized domains and providers are the control), and the server needs no Firebase credential at all.
@@ -650,7 +655,7 @@ No. The product describes what a document says and where. It does not say whethe
 <details>
 <summary><b>Where does my document go?</b></summary>
 
-To the API server, once, as bytes that are parsed in a worker thread and then dropped. What stays is the extracted text and the prepared outputs, in the server process's memory, until you press "Delete my document now" or 30 idle minutes pass. No database, no analytics, no third-party scripts in the page; fonts ship with the bundle, so the only external requests the browser makes are to Firebase Authentication for sign-in and token refresh, which never sees the document.
+To the API server, once, as bytes that are parsed in a worker thread and then dropped. What stays is the extracted text and the prepared outputs, in the server's session store (its own memory, or on a multi-instance host a Redis database where every document and output is encrypted with a key only the server has), until you press "Delete my document now" or 30 idle minutes pass. No analytics, no third-party scripts in the page; fonts ship with the bundle, so the only external requests the browser makes are to Firebase Authentication for sign-in and token refresh, which never sees the document.
 
 </details>
 
@@ -710,6 +715,7 @@ In development, yes: see [Running it without any keys](#running-it-without-any-k
 | [docs/PRD.md](docs/PRD.md) | The product requirements this build follows; section numbers in code comments point here |
 | [docs/README.md](docs/README.md) | The architecture diagram with each step mapped to its files |
 | [docs/threat-model.md](docs/threat-model.md) | Assets, trust boundaries, threat categories and the control (and test) for each |
+| [docs/deployment.md](docs/deployment.md) | Running it on a host: the single-server setup, and Vercel with the Redis session store |
 | [docs/design.md](docs/design.md) | The UI design specification: tokens, component recipes, every screen and its states, copy and accessibility rules |
 | [docs/design-prompts.md](docs/design-prompts.md) | The same specification as copy-paste prompt blocks for handing the UI to another builder |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting, the guarantees in one page, accepted risks |

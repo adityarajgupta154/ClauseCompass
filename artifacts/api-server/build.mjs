@@ -15,9 +15,15 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    // Two entries: the server, and the extraction worker thread it spawns
-    // (emitted as dist/extraction/worker.mjs, see src/extraction/isolated.ts).
-    entryPoints: [path.resolve(artifactDir, "src/index.ts"), path.resolve(artifactDir, "src/extraction/worker.ts")],
+    // Three entries: the server, the same app for a host that calls it per
+    // request without a listener (dist/vercel.mjs, see src/vercel.ts), and
+    // the extraction worker thread both spawn (emitted as
+    // dist/extraction/worker.mjs, see src/extraction/isolated.ts).
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/vercel.ts"),
+      path.resolve(artifactDir, "src/extraction/worker.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",

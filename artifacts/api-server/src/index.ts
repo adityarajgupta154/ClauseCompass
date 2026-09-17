@@ -6,9 +6,12 @@ import { ConfigError, getConfig, type Config } from "./lib/config";
 // below). A ConfigError is a deliberate refusal to start, so it is printed as
 // a plain message, written synchronously so nothing is lost on exit, rather
 // than as a stack trace.
-function loadConfigOrExit(): Config {
+function loadConfigOrExit(): Config & { port: number } {
   try {
-    return getConfig();
+    const config = getConfig();
+    // PORT is optional in the schema because vercel.ts runs the same app with no listener; this entry is the listener.
+    if (config.port === undefined) throw new ConfigError(["PORT: required; the port this server listens on"]);
+    return { ...config, port: config.port };
   } catch (err) {
     if (err instanceof ConfigError) {
       writeSync(2, `${err.message}\n`);
@@ -46,7 +49,9 @@ const server = app.listen(config.port, (err) => {
           : {}),
       },
       auth: config.auth.provider === "firebase" ? { provider: "firebase", projectId: config.auth.projectId } : { provider: "mock" },
+      sessionStore: config.sessionStore.kind,
       sessionTtlMinutes: config.sessionTtlMinutes,
+      uploadMaxMb: config.uploadMaxBytes / (1024 * 1024),
     },
     "Server listening",
   );

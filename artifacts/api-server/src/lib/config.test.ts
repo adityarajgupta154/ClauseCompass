@@ -217,3 +217,63 @@ describe("parseEnv: budgets and origins", () => {
     expect(() => parseEnv({ ...withModel, LLM_MAX_CONCURRENT: "65" })).toThrow(/LLM_MAX_CONCURRENT/);
   });
 });
+
+describe("parseEnv: session store, port and upload cap", () => {
+  const withModel = { ...base, ANTHROPIC_API_KEY: "sk-own" };
+  const key = "ab".repeat(32);
+  const redis = { ...withModel, SESSION_STORE: "redis", SESSION_STORE_URL: "https://db.upstash.io", SESSION_STORE_TOKEN: "tok", SESSION_STORE_KEY: key };
+
+  it("holds sessions in memory by default, with the port and a 10 MB upload cap", () => {
+    const config = parseEnv(withModel);
+    expect(config.sessionStore).toEqual({ kind: "memory" });
+    expect(config.port).toBe(8080);
+    expect(config.uploadMaxBytes).toBe(10 * 1024 * 1024);
+  });
+
+  it("reads the Redis store's URL, token and key, the key as hex or base64", () => {
+    const config = parseEnv(redis);
+    expect(config.sessionStore).toMatchObject({ kind: "redis", url: "https://db.upstash.io", token: "tok" });
+    expect(config.sessionStore.kind === "redis" && config.sessionStore.key.toString("hex")).toBe(key);
+    const base64 = Buffer.from(key, "hex").toString("base64");
+    const fromBase64 = parseEnv({ ...redis, SESSION_STORE_KEY: base64 }).sessionStore;
+    expect(fromBase64.kind === "redis" && fromBase64.key.toString("hex")).toBe(key);
+  });
+
+  it("falls back to the names the Upstash integration and console use, hand-set names winning", () => {
+    const integration = { ...withModel, SESSION_STORE: "redis", KV_REST_API_URL: "https://kv.upstash.io", KV_REST_API_TOKEN: "kv-tok", SESSION_STORE_KEY: key };
+    expect(parseEnv(integration).sessionStore).toMatchObject({ url: "https://kv.upstash.io", token: "kv-tok" });
+    const console_ = { ...withModel, SESSION_STORE: "redis", UPSTASH_REDIS_REST_URL: "https://c.upstash.io", UPSTASH_REDIS_REST_TOKEN: "c-tok", SESSION_STORE_KEY: key };
+    expect(parseEnv(console_).sessionStore).toMatchObject({ url: "https://c.upstash.io", token: "c-tok" });
+    expect(parseEnv({ ...integration, SESSION_STORE_URL: "https://own.upstash.io" }).sessionStore).toMatchObject({ url: "https://own.upstash.io", token: "kv-tok" });
+  });
+
+  it("refuses the Redis store without its URL, token or key, naming each, and never prints the token or the key", () => {
+    const attempt = () => parseEnv({ ...withModel, SESSION_STORE: "redis", SESSION_STORE_TOKEN: "secret-token" });
+    expect(attempt).toThrow(/SESSION_STORE_URL: required when SESSION_STORE=redis/);
+    expect(attempt).toThrow(/SESSION_STORE_KEY: required when SESSION_STORE=redis.*openssl rand -hex 32/);
+    expect(attempt).not.toThrow(/secret-token/);
+    const badKey = () => parseEnv({ ...redis, SESSION_STORE_KEY: "too-short-secret" });
+    expect(badKey).toThrow(/SESSION_STORE_KEY: must be 32 bytes as 64 hex characters/);
+    expect(badKey).not.toThrow(/too-short-secret/);
+    expect(() => parseEnv({ ...redis, SESSION_STORE_URL: "http://db.upstash.io" })).toThrow(/SESSION_STORE_URL: must be an https URL/);
+  });
+
+  it("refuses the memory store on Vercel, where an instance per request shares nothing, and the stand-ins too", () => {
+    const vercel = { ...withModel, NODE_ENV: "development", VERCEL: "1" };
+    expect(() => parseEnv(vercel)).toThrow(/SESSION_STORE: "memory" is not allowed on Vercel \(VERCEL=1\)/);
+    expect(() => parseEnv({ ...vercel, LLM_PROVIDER: "mock" })).toThrow(/LLM_PROVIDER: "mock" is not allowed .*VERCEL=1/);
+    expect(parseEnv({ ...redis, VERCEL: "1" }).sessionStore.kind).toBe("redis");
+  });
+
+  it("lets PORT be unset for a host that calls the app per request; the listener entry insists on it", () => {
+    const { PORT: _unused, ...withoutPort } = withModel;
+    expect(parseEnv(withoutPort).port).toBeUndefined();
+    expect(() => parseEnv({ ...withModel, PORT: "0" })).toThrow(/PORT: must be a whole number between 1 and 65535/);
+  });
+
+  it("caps uploads between 1 and 10 MB", () => {
+    expect(parseEnv({ ...withModel, UPLOAD_MAX_MB: "4" }).uploadMaxBytes).toBe(4 * 1024 * 1024);
+    expect(() => parseEnv({ ...withModel, UPLOAD_MAX_MB: "11" })).toThrow(/UPLOAD_MAX_MB: must be a whole number between 1 and 10/);
+    expect(() => parseEnv({ ...withModel, UPLOAD_MAX_MB: "0" })).toThrow(/UPLOAD_MAX_MB/);
+  });
+});

@@ -1,5 +1,5 @@
 import multer, { type Multer, type Options } from "multer";
-import { MAX_FILE_BYTES } from "../extraction";
+import { getConfig } from "../lib/config";
 import { ApiError } from "../middlewares/api-error";
 import { fileNameProblem, type FileNameProblem } from "./file-name";
 
@@ -13,12 +13,13 @@ import { fileNameProblem, type FileNameProblem } from "./file-name";
  * sent — its own default would silently reduce `../../etc/passwd` to
  * `passwd` and read the name in Latin-1, which turns a Devanagari name into
  * mojibake — so that the check sees what the client sent and the name shown
- * back is the one the person typed.
+ * back is the one the person typed. The byte cap is UPLOAD_MAX_MB: the
+ * format's own 10 MB unless the host accepts smaller request bodies.
  */
 export function documentUpload(limits: Pick<NonNullable<Options["limits"]>, "files" | "fields" | "fieldSize">): Multer {
   return multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: MAX_FILE_BYTES, ...limits },
+    limits: { fileSize: getConfig().uploadMaxBytes, ...limits },
     preservePath: true,
     defParamCharset: "utf8",
     fileFilter: (_req, file, callback) => {

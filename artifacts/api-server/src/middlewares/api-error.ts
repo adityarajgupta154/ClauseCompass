@@ -1,6 +1,8 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import multer from "multer";
-import { isExtractionError, MAX_FILE_BYTES } from "../extraction";
+import { isExtractionError } from "../extraction";
+import { getConfig } from "../lib/config";
+import { SessionStoreUnavailableError } from "../sessions/store";
 
 /**
  * Every failure on `/api` leaves as JSON `{ error: { code, message } }`
@@ -36,7 +38,11 @@ const INTERNAL: Problem = {
   message: "Something went wrong on ClauseCompass's side while handling this request. Try again in a moment.",
 };
 
-const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024));
+const STORE_UNAVAILABLE: Problem = {
+  status: 503,
+  code: "store-unavailable",
+  message: "ClauseCompass cannot reach where it keeps sessions right now. Try again in a moment.",
+};
 
 const BUSBOY_PARSE_FAILURE = /^(Malformed part header|Unexpected end of form|Unexpected end of multipart data|Missing Content-Type|Multipart: Boundary not found)/;
 
@@ -47,6 +53,7 @@ function isBodyParserError(err: unknown): err is Error & { type: string; status:
 function toProblem(err: unknown): Problem {
   if (err instanceof ApiError) return { status: err.status, code: err.code, message: err.message };
   if (isExtractionError(err)) return { status: err.status, code: err.code, message: err.message };
+  if (err instanceof SessionStoreUnavailableError) return STORE_UNAVAILABLE;
 
   if (err instanceof multer.MulterError) {
     switch (err.code) {
@@ -54,7 +61,7 @@ function toProblem(err: unknown): Problem {
         return {
           status: 413,
           code: "too-large",
-          message: `This file is larger than ${MAX_FILE_MB} MB, the maximum for one document.`,
+          message: `This file is larger than ${Math.round(getConfig().uploadMaxBytes / (1024 * 1024))} MB, the maximum for one document.`,
         };
       case "LIMIT_FILE_COUNT":
       case "LIMIT_UNEXPECTED_FILE":
@@ -104,6 +111,10 @@ export const apiErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
   const log = req.log;
   if (problem === INTERNAL) {
     log?.error({ err }, "unhandled error while handling request");
+  } else if (problem === STORE_UNAVAILABLE) {
+    // The store's own message names the failure (network, status, refused command), never a document.
+    log?.error({ err }, "the session store did not answer");
+    res.set("Retry-After", "5");
   } else {
     log?.warn({ code: problem.code, status: problem.status }, "request refused");
     // The parser's own exception is mostly kept out of the logs: its text can

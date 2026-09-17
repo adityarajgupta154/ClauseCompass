@@ -19,6 +19,7 @@ import { admitThrough, busy } from "../middlewares/extraction-gate";
 import { safeFileName } from "../uploads/file-name";
 import { documentUpload } from "../uploads/multipart";
 import {
+  getInFlight,
   getSessionStore,
   SessionStoreFullError,
   type ApiSession,
@@ -165,17 +166,13 @@ function sessionGone(cause?: unknown): ApiError {
  * nothing, and the refused request does not move its retention clock either
  * (the store decides ownership before it touches anything).
  */
-function findSession(req: Request): ApiSession {
+async function findSession(req: Request): Promise<ApiSession> {
   const id = req.params.sessionId;
   if (typeof id !== "string" || !SESSION_ID.test(id)) throw sessionGone();
-  const store = getSessionStore();
-  const { uid } = userOf(req);
-  const session = store.getOwned(id, uid);
-  if (!session) {
-    if (store.isSomeoneElses(id, uid)) req.log.warn("a session was requested by a reader who did not open it");
-    throw sessionGone();
-  }
-  return session;
+  const found = await getSessionStore().find(id, userOf(req).uid);
+  if (found.outcome === "found") return found.session;
+  if (found.outcome === "foreign") req.log.warn("a session was requested by a reader who did not open it");
+  throw sessionGone();
 }
 
 /** The document the map and the review prompts describe: the one document, or the newer version of a comparison. */
@@ -187,55 +184,47 @@ function documentOf(session: ApiSession): SessionDocument {
 
 /**
  * One output, prepared once per session. A second request for it is a
- * lookup; concurrent requests share the run in flight. An output degraded by
- * the model being unavailable is returned but not kept, so a retry runs
- * again rather than repeating the degraded answer. If the session is deleted
- * while the run is in flight, the run is aborted through the session's
- * signal and the request ends as 404 like any other request for a gone
- * session.
+ * lookup; concurrent requests on this instance share the run in flight
+ * (sessions/in-flight.ts). An output degraded by the model being
+ * unavailable is returned but not kept, so a retry runs again rather than
+ * repeating the degraded answer. If the session is deleted while the run is
+ * in flight, the run is aborted through its signal and the request ends as
+ * 404 like any other request for a gone session; a run that outlived its
+ * session some other way (the provider ignored the abort, the session
+ * expired, another instance deleted it) finds nothing to keep the output
+ * in and answers the same.
  */
-async function prepare<K extends OutputKind>(
+function prepare<K extends OutputKind>(
   session: ApiSession,
   kind: K,
-  compute: () => Promise<PreparedOutputs[K]>,
+  compute: (signal: AbortSignal) => Promise<PreparedOutputs[K]>,
   keep: (output: PreparedOutputs[K]) => boolean,
 ): Promise<PreparedOutputs[K]> {
   const held = session.outputs[kind];
-  if (held !== undefined) return held;
-  // The mapped pending type does not narrow through a generic key; the cast keeps kind and promise type paired.
-  const pending = session.pending as Partial<Record<K, Promise<PreparedOutputs[K]>>>;
-  const start = () => {
-    const run = compute()
-      .then((output) => {
-        if (!session.deleted && keep(output)) session.outputs[kind] = output;
-        return output;
-      })
-      .finally(() => {
-        delete pending[kind];
-      });
-    pending[kind] = run;
-    return run;
-  };
-  let output: PreparedOutputs[K];
-  try {
-    output = await (pending[kind] ?? start());
-  } catch (error) {
-    if (session.deleted) throw sessionGone(error);
-    throw error;
-  }
-  // A run that outlived its session (the provider ignored the abort, or finished first) still answers as gone.
-  if (session.deleted) throw sessionGone();
-  return output;
+  if (held !== undefined) return Promise.resolve(held);
+  return getInFlight().share(session.id, kind, async (signal) => {
+    let output: PreparedOutputs[K];
+    try {
+      output = await compute(signal);
+    } catch (error) {
+      if (signal.aborted) throw sessionGone(error);
+      throw error;
+    }
+    const store = getSessionStore();
+    const alive = keep(output) ? await store.saveOutput(session.id, session.ownerUid, kind, output) : await store.has(session.id);
+    if (!alive || signal.aborted) throw sessionGone();
+    return output;
+  });
 }
 
-function modelOptions(req: Request, session: ApiSession) {
+function modelOptions(req: Request, session: ApiSession, signal: AbortSignal) {
   return {
     stage: session.stage,
     documentType: session.documentType,
     provider: getLlmProvider(),
     model: getConfig().llm.model,
     log: req.log,
-    signal: session.signal,
+    signal,
   };
 }
 
@@ -294,7 +283,7 @@ router.post("/sessions", heavyBudget, admitThrough(uploadGate, 2), upload, async
   const store = getSessionStore();
   let session: ApiSession;
   try {
-    session = store.create({ ownerUid: userOf(req).uid, stage, documentType, documents });
+    session = await store.create({ ownerUid: userOf(req).uid, stage, documentType, documents });
   } catch (error) {
     if (!(error instanceof SessionStoreFullError)) throw error;
     res.set("Retry-After", "60");
@@ -302,12 +291,13 @@ router.post("/sessions", heavyBudget, admitThrough(uploadGate, 2), upload, async
   }
 
   // Counts and kinds only: no text from the documents, no file names, no session id.
+  // The session is open by now; a count that cannot be read must not turn that into an error.
   req.log.info(
     {
       stage,
       documentType: documentType ?? null,
       documents: documents.map((held) => ({ slot: held.slot, kind: held.document.kind, paragraphs: held.document.chunks.length })),
-      sessions: store.size,
+      sessions: await store.size().catch(() => null),
       ms: Math.round(performance.now() - started),
     },
     "session opened",
@@ -316,8 +306,8 @@ router.post("/sessions", heavyBudget, admitThrough(uploadGate, 2), upload, async
 });
 
 /** GET /api/sessions/:sessionId — the session as it stands; reading it counts as activity. */
-router.get("/sessions/:sessionId", (req, res) => {
-  res.json(GetSessionResponse.parse(sessionView(findSession(req))));
+router.get("/sessions/:sessionId", async (req, res) => {
+  res.json(GetSessionResponse.parse(sessionView(await findSession(req))));
 });
 
 /**
@@ -327,24 +317,24 @@ router.get("/sessions/:sessionId", (req, res) => {
  * the reader who opened it can end it; for anyone else it is one of the ids
  * that do not exist.
  */
-router.delete("/sessions/:sessionId", (req, res) => {
+router.delete("/sessions/:sessionId", async (req, res) => {
   const id = req.params.sessionId;
-  const store = getSessionStore();
-  const existed = typeof id === "string" && SESSION_ID.test(id) && store.deleteOwned(id, userOf(req).uid);
-  req.log.info({ existed, sessions: store.size }, "session delete requested");
+  const existed = typeof id === "string" && SESSION_ID.test(id) && (await getSessionStore().deleteOwned(id, userOf(req).uid));
+  if (existed) getInFlight().abort(id as string);
+  req.log.info({ existed }, "session delete requested");
   res.status(204).end();
 });
 
 /** POST /api/sessions/:sessionId/document-map — the Document Map and Timeline for the session's document. */
 router.post("/sessions/:sessionId/document-map", heavyBudget, admitAnalysis, async (req, res) => {
-  const session = findSession(req);
+  const session = await findSession(req);
   const output = await prepare(
     session,
     "documentMap",
-    async () => {
+    async (signal) => {
       const started = performance.now();
       const held = documentOf(session);
-      const analysis = await analyzeDocument(held.document, modelOptions(req, session));
+      const analysis = await analyzeDocument(held.document, modelOptions(req, session, signal));
       // Statuses and counts only: no text from the document or the model.
       req.log.info(
         {
@@ -372,14 +362,14 @@ router.post("/sessions/:sessionId/document-map", heavyBudget, admitAnalysis, asy
 
 /** POST /api/sessions/:sessionId/review-prompts — the Review Prompts for the session's document. */
 router.post("/sessions/:sessionId/review-prompts", heavyBudget, admitAnalysis, async (req, res) => {
-  const session = findSession(req);
+  const session = await findSession(req);
   const output = await prepare(
     session,
     "reviewPrompts",
-    async () => {
+    async (signal) => {
       const started = performance.now();
       const held = documentOf(session);
-      const { chunks, review } = await analyzeReviewPrompts(held.document, modelOptions(req, session));
+      const { chunks, review } = await analyzeReviewPrompts(held.document, modelOptions(req, session, signal));
       req.log.info(
         {
           kind: held.document.kind,
@@ -411,7 +401,7 @@ router.post("/sessions/:sessionId/review-prompts", heavyBudget, admitAnalysis, a
  * paragraph-pair cap (past it: 422, before any table is allocated).
  */
 router.post("/sessions/:sessionId/compare", heavyBudget, admitAnalysis, async (req, res) => {
-  const session = findSession(req);
+  const session = await findSession(req);
   const output = await prepare(
     session,
     "compare",

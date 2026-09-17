@@ -11,7 +11,7 @@
 - [Review Prompts pipeline](review-prompts.md) — model phrases primary+secondary only; a claim needs category + quote-bearing excerpt of that rule; withheld = rejections + drops.
 - [Compare view](compare.md) — deterministic, no model; server sends kinds + verbatim values, client phrases per kind; loose label match, one-for-one gap pass, pair cap, punctuation pass.
 - [Packet export](packet-export.md) — one packet model → HTML + text, scan derives forbidden names from the payload; paper-sheet print quirks; no model call for the packet.
-- [Sessions](sessions.md) — opened at Continue, no resume after refresh, delete clears the client cache, client mirrors the server clock with DELETE-only expiry, upload race guard.
+- [Sessions](sessions.md) — opened at Continue, no resume after refresh, delete clears the client cache, client mirrors the server clock; memory vs sealed Redis store, Vercel wiring, copy loads at vite-config time.
 - [Resource registry](resources-registry.md) — bundled by the client, no API; every sentence traceable to its one sourceUrl or left out; no coverage badge; guidance-key hook.
 - [Upload name handling](uploads.md) — multer preservePath/utf8 on purpose: busboy basenames traversal names and mojibakes Devanagari by default; refuse paths, test with fetch + raw bodies.
 - [Design docs](design-docs.md) — design.md + design-prompts.md are hand-derived from code; grep every class/sentence before writing; reviewers paraphrase; interview placeholder is live copy.

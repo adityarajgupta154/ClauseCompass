@@ -1,5 +1,6 @@
 import { isIPv4, isIPv6 } from "node:net";
 import { z } from "zod";
+import { parseSealingKey } from "../sessions/sealed";
 
 /**
  * Process environment, validated once at startup.
@@ -32,10 +33,20 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 export interface Config {
   nodeEnv: "development" | "test" | "production";
   logLevel: LogLevel;
-  /** Port the HTTP server listens on. */
-  port: number;
-  /** How long an uploaded document and its analysis stay in memory. */
+  /** Port the HTTP server listens on; unset on a host that calls the app per request instead of starting a listener (see index.ts, vercel.ts). */
+  port: number | undefined;
+  /** How long an uploaded document and its analysis are kept without activity. */
   sessionTtlMinutes: number;
+  /**
+   * Where sessions are held (SESSION_STORE). "memory" is this process,
+   * right for one long-running instance. "redis" is a Redis database over
+   * its REST API (Upstash), shared by every instance, with each value sealed
+   * under `key` before it leaves the process; required wherever the host
+   * runs more than one instance, and refused nowhere else.
+   */
+  sessionStore: { kind: "memory" } | { kind: "redis"; url: string; token: string; key: Buffer };
+  /** Largest upload accepted for one document, in bytes (UPLOAD_MAX_MB); at most the 10 MB the format checks were written for. */
+  uploadMaxBytes: number;
   /**
    * Model provider. "anthropic" talks to the Messages API at `baseUrl`, with
    * the key either set by hand (ANTHROPIC_API_KEY) or provisioned by the
@@ -182,7 +193,7 @@ const originList = z
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
-  PORT: wholeNumber(1, 65535),
+  PORT: wholeNumber(1, 65535).optional(),
   LLM_PROVIDER: z.enum(["anthropic", "mock"]).default("anthropic"),
   LLM_MODEL: z
     .string()
@@ -193,6 +204,22 @@ const envSchema = z.object({
   AI_INTEGRATIONS_ANTHROPIC_API_KEY: z.string().optional(),
   AI_INTEGRATIONS_ANTHROPIC_BASE_URL: httpUrl.optional(),
   SESSION_TTL_MINUTES: wholeNumber(1, 24 * 60).default("30"),
+  SESSION_STORE: z.enum(["memory", "redis"]).default("memory"),
+  SESSION_STORE_URL: httpUrl.optional(),
+  SESSION_STORE_TOKEN: z.string().optional(),
+  SESSION_STORE_KEY: z
+    .string()
+    .refine((value) => parseSealingKey(value) !== undefined, {
+      message: "must be 32 bytes as 64 hex characters (openssl rand -hex 32) or as base64",
+    })
+    .optional(),
+  /** Set by the Upstash integration on Vercel; read when SESSION_STORE_URL / SESSION_STORE_TOKEN are not set by hand. */
+  KV_REST_API_URL: httpUrl.optional(),
+  KV_REST_API_TOKEN: z.string().optional(),
+  /** Set by Upstash's own console snippets; same fallback. */
+  UPSTASH_REDIS_REST_URL: httpUrl.optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  UPLOAD_MAX_MB: wholeNumber(1, 10).default("10"),
   AUTH_PROVIDER: z.enum(["firebase", "mock"]).default("firebase"),
   FIREBASE_PROJECT_ID: z
     .string()
@@ -205,14 +232,26 @@ const envSchema = z.object({
   LLM_MAX_CONCURRENT: wholeNumber(1, 64).default("8"),
   /** Set to "1" by Replit inside a published app; the mock providers are refused there whatever NODE_ENV says. */
   REPLIT_DEPLOYMENT: z.string().optional(),
+  /** Set to "1" by Vercel in its builds and functions: the same refusal, and the memory store is refused too (an instance per request shares nothing). */
+  VERCEL: z.string().optional(),
 });
 
-/** Where a stand-in provider must never run: a production build, or any published Replit app. */
+/** Where a stand-in provider must never run: a production build, or any published app on a host that says so. */
 function isLiveEnvironment(env: EnvSource): boolean {
-  return env.NODE_ENV === "production" || env.REPLIT_DEPLOYMENT === "1";
+  return env.NODE_ENV === "production" || env.REPLIT_DEPLOYMENT === "1" || env.VERCEL === "1";
 }
 
-const LIVE_ONLY_MESSAGE = "is not allowed when NODE_ENV=production or inside a published app (REPLIT_DEPLOYMENT=1)";
+const LIVE_ONLY_MESSAGE = "is not allowed when NODE_ENV=production or inside a published app (REPLIT_DEPLOYMENT=1 or VERCEL=1)";
+
+/** The Redis REST URL and token: set by hand, or as the Upstash integration on Vercel or Upstash's own console name them. */
+function redisAccess(
+  env: Partial<Record<"SESSION_STORE_URL" | "SESSION_STORE_TOKEN" | "KV_REST_API_URL" | "KV_REST_API_TOKEN" | "UPSTASH_REDIS_REST_URL" | "UPSTASH_REDIS_REST_TOKEN", string>>,
+): { url: string | undefined; token: string | undefined } {
+  return {
+    url: env.SESSION_STORE_URL ?? env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL,
+    token: env.SESSION_STORE_TOKEN ?? env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN,
+  };
+}
 
 /** True when the Replit Anthropic AI integration has provisioned both of its variables. */
 function hasReplitIntegration(env: EnvSource): boolean {
@@ -240,6 +279,25 @@ function crossFieldProblems(env: EnvSource): string[] {
   if (auth === "mock" && isLiveEnvironment(env)) {
     problems.push(`AUTH_PROVIDER: "mock" ${LIVE_ONLY_MESSAGE}`);
   }
+  const store = env.SESSION_STORE ?? "memory";
+  if (store === "redis") {
+    const access = redisAccess(env);
+    if (access.url === undefined) {
+      problems.push("SESSION_STORE_URL: required when SESSION_STORE=redis; the database's REST URL (or KV_REST_API_URL / UPSTASH_REDIS_REST_URL as the Upstash integration sets it)");
+    }
+    if (access.token === undefined) {
+      problems.push("SESSION_STORE_TOKEN: required when SESSION_STORE=redis; the database's REST token (or KV_REST_API_TOKEN / UPSTASH_REDIS_REST_TOKEN)");
+    }
+    if (env.SESSION_STORE_KEY === undefined) {
+      problems.push(
+        "SESSION_STORE_KEY: required when SESSION_STORE=redis; the key every document and output is encrypted under before it is written to the database. Generate one with `openssl rand -hex 32`; changing it makes existing sessions unreadable, which is the intended way to retire them.",
+      );
+    }
+  } else if (env.VERCEL === "1") {
+    problems.push(
+      "SESSION_STORE: \"memory\" is not allowed on Vercel (VERCEL=1), where each request may run on a different instance and an in-process store would lose the session between an upload and its analysis. Set SESSION_STORE=redis with an Upstash Redis database; see docs/deployment.md.",
+    );
+  }
   return problems;
 }
 
@@ -265,7 +323,7 @@ export function parseEnv(source: EnvSource): Config {
         const message =
           issue.code === z.ZodIssueCode.invalid_type && issue.received === "undefined" ? "required" : issue.message;
         const raw = env[key];
-        const got = raw !== undefined && !key.endsWith("_KEY") ? ` (got "${raw}")` : "";
+        const got = raw !== undefined && !key.endsWith("_KEY") && !key.endsWith("_TOKEN") ? ` (got "${raw}")` : "";
         return `${key}: ${message}${got}`;
       });
   problems.push(...crossFieldProblems(env));
@@ -280,6 +338,8 @@ export function parseEnv(source: EnvSource): Config {
     logLevel: parsed.LOG_LEVEL,
     port: parsed.PORT,
     sessionTtlMinutes: parsed.SESSION_TTL_MINUTES,
+    sessionStore: resolveSessionStore(parsed),
+    uploadMaxBytes: parsed.UPLOAD_MAX_MB * 1024 * 1024,
     llm: resolveLlm(parsed),
     auth: resolveAuth(parsed),
     corsOrigins: parsed.CORS_ORIGINS,
@@ -287,6 +347,13 @@ export function parseEnv(source: EnvSource): Config {
     trustProxy: parsed.TRUST_PROXY,
     llmMaxConcurrent: parsed.LLM_MAX_CONCURRENT,
   };
+}
+
+/** crossFieldProblems guarantees the URL, token and key exist when the store is redis; the field schema, that the key parses. */
+function resolveSessionStore(parsed: z.infer<typeof envSchema>): Config["sessionStore"] {
+  if (parsed.SESSION_STORE === "memory") return { kind: "memory" };
+  const access = redisAccess(parsed);
+  return { kind: "redis", url: access.url as string, token: access.token as string, key: parseSealingKey(parsed.SESSION_STORE_KEY as string) as Buffer };
 }
 
 /** crossFieldProblems guarantees the project id exists when the provider is firebase. */

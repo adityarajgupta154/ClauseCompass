@@ -10,6 +10,8 @@
  * embellish them for tone, and do not promise behaviour the code does not have.
  * Whoever changes one of them changes its Hinglish line in the same commit.
  */
+import { MAX_FILE_LABEL } from "../document/constants";
+
 /** "1 minute", "30 minutes": the retention window as a phrase. */
 export function minutesPhrase(minutes: number): string {
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
@@ -169,9 +171,9 @@ export const en = {
   upload: {
     heading: "Upload your document",
     headingCompare: "Upload both versions",
-    lead: "A PDF, DOCX or TXT file of up to 10 MB. Scans and photos cannot be read yet, so ask for a text version if that is all you have.",
+    lead: `A PDF, DOCX or TXT file of up to ${MAX_FILE_LABEL}. Scans and photos cannot be read yet, so ask for a text version if that is all you have.`,
     leadCompare:
-      "The older and the newer version, each a PDF, DOCX or TXT file of up to 10 MB. Scans and photos cannot be read yet.",
+      `The older and the newer version, each a PDF, DOCX or TXT file of up to ${MAX_FILE_LABEL}. Scans and photos cannot be read yet.`,
     situationLabel: "Your situation",
     change: "Change your situation",
     /** The picture beside the file input on a wide screen: the word on the front sheet and the handwritten line pointing at it (decorative). */
@@ -222,7 +224,7 @@ export const en = {
     dropzone: {
       prompt: "Drag a file here, or",
       action: "Choose a file",
-      hint: "PDF, DOCX or TXT, up to 10 MB.",
+      hint: `PDF, DOCX or TXT, up to ${MAX_FILE_LABEL}.`,
       replace: "Replace",
       remove: "Remove",
       readyLabel: "Ready",

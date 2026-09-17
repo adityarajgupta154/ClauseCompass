@@ -618,8 +618,10 @@ describe("what a session holds", () => {
   it("keeps extracted paragraphs, never the uploaded bytes", async () => {
     const id = await openSession(pairUpload);
     const { getSessionStore } = await import("../sessions");
-    const session = getSessionStore().get(id)!;
-    expect(session).toBeDefined();
+    const found = await getSessionStore().find(id, READER);
+    expect(found.outcome).toBe("found");
+    if (found.outcome !== "found") return;
+    const { session } = found;
     const seen = new Set<unknown>();
     const walk = (value: unknown, path: string) => {
       if (value === null || typeof value !== "object" || seen.has(value)) return;

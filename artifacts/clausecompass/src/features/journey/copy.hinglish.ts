@@ -1,3 +1,4 @@
+import { MAX_FILE_LABEL } from "../document/constants";
 import { en, type Copy } from "./copy.en";
 
 /**
@@ -143,9 +144,9 @@ export const hinglish: Copy = {
   upload: {
     heading: "Apna document upload karein",
     headingCompare: "Dono versions upload karein",
-    lead: "PDF, DOCX ya TXT file, zyada se zyada 10 MB. Scan aur photo abhi padhe nahi ja sakte, isliye agar aapke paas sirf wahi hai to text version maang lein.",
+    lead: `PDF, DOCX ya TXT file, zyada se zyada ${MAX_FILE_LABEL}. Scan aur photo abhi padhe nahi ja sakte, isliye agar aapke paas sirf wahi hai to text version maang lein.`,
     leadCompare:
-      "Purana aur naya version, har ek PDF, DOCX ya TXT file, zyada se zyada 10 MB. Scan aur photo abhi padhe nahi ja sakte.",
+      `Purana aur naya version, har ek PDF, DOCX ya TXT file, zyada se zyada ${MAX_FILE_LABEL}. Scan aur photo abhi padhe nahi ja sakte.`,
     situationLabel: "Aapki situation",
     change: "Situation badlein",
     art: {
@@ -182,7 +183,7 @@ export const hinglish: Copy = {
     dropzone: {
       prompt: "File yahan drag karein, ya",
       action: "File chunein",
-      hint: "PDF, DOCX ya TXT, zyada se zyada 10 MB.",
+      hint: `PDF, DOCX ya TXT, zyada se zyada ${MAX_FILE_LABEL}.`,
       replace: "Badlein",
       remove: "Hataayein",
       readyLabel: "Taiyar",
