@@ -46,10 +46,10 @@ describe("parseRedisUrl", () => {
   });
 
   it("places this machine and its private network, and nothing it cannot place without a lookup", () => {
-    for (const host of ["localhost", "127.0.0.1", "127.8.0.1", "10.2.3.4", "172.16.0.1", "172.31.255.255", "192.168.1.1", "::1", "fd12::1", "fe80::1", "::ffff:7f00:1", "::ffff:10.0.0.1"]) {
+    for (const host of ["localhost", "LOCALHOST", "localhost.", "127.0.0.1", "127.8.0.1", "10.2.3.4", "172.16.0.1", "172.31.255.255", "192.168.1.1", "::1", "fd12::1", "fe80::1", "::ffff:7f00:1", "::ffff:10.0.0.1"]) {
       expect(isPrivateHost(host), host).toBe(true);
     }
-    for (const host of ["db.example.org", "redis.internal", "8.8.8.8", "172.32.0.1", "192.169.0.1", "2001:db8::1", "::ffff:808:808"]) {
+    for (const host of ["db.example.org", "redis.internal", "localhost.example.org", "8.8.8.8", "172.32.0.1", "192.169.0.1", "2001:db8::1", "::ffff:808:808", "::ffff:a00:1:2"]) {
       expect(isPrivateHost(host), host).toBe(false);
     }
   });

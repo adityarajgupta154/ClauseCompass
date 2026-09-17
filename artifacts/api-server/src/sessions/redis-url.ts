@@ -74,7 +74,7 @@ export function redisUrlProblem(value: string): string | undefined {
  * `localhost` cannot be placed without resolving it, so it is not.
  */
 export function isPrivateHost(host: string): boolean {
-  if (host === "localhost") return true;
+  if (/^localhost\.?$/i.test(host)) return true;
   const family = isIP(host);
   if (family === 4) {
     const [a, b] = host.split(".").map(Number) as [number, number];
@@ -83,13 +83,13 @@ export function isPrivateHost(host: string): boolean {
   if (family === 6) {
     const lower = host.toLowerCase();
     if (lower === "::1") return true;
-    if (lower.startsWith("::ffff:")) {
-      // An IPv4 address carried in IPv6, dotted (::ffff:10.0.0.1) or as the URL parser writes it (::ffff:a00:1).
-      const rest = lower.slice("::ffff:".length);
-      if (rest.includes(".")) return isPrivateHost(rest);
-      const high = parseInt(rest.split(":")[0] ?? "0", 16);
+    // An IPv4 address carried in IPv6, dotted (::ffff:10.0.0.1) or as the URL parser writes it (::ffff:a00:1); exactly that shape, nothing longer.
+    const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
+    if (mapped) {
+      const high = parseInt(mapped[1]!, 16);
       return isPrivateV4(high >> 8, high & 0xff);
     }
+    if (lower.startsWith("::ffff:") && isIP(lower.slice("::ffff:".length)) === 4) return isPrivateHost(lower.slice("::ffff:".length));
     return /^f[cd]/.test(lower) || /^fe[89ab]/.test(lower);
   }
   return false;
