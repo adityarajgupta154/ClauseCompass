@@ -92,9 +92,9 @@ export default defineConfig([
     },
   },
 
-  // The accessibility runner and the social-image script drive a real Chromium: the functions they pass to `page.evaluate` run in the page.
+  // The accessibility runner, the social-image script and the screenshot script drive a real Chromium: the functions they pass to `page.evaluate` run in the page.
   {
-    files: ["scripts/a11y/**/*.mjs", "scripts/og-image.mjs"],
+    files: ["scripts/a11y/**/*.mjs", "scripts/og-image.mjs", "scripts/docs/screenshots.mjs"],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser, ...globals.es2024 },
     },
