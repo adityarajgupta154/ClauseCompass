@@ -1,0 +1,74 @@
+# The submission preflight, run by GitHub on every push and pull request to
+# main: the same five steps as `pnpm preflight` (scripts/preflight.sh), on the
+# two Node lines the repo supports (22.13+: --env-file-if-exists and ESLint 10, and the
+# current release). Offline by construction: the tests use the stand-in model
+# and sign-in, no key or browser is needed, and no secret is read here.
+#
+# Not run here: `pnpm a11y` (needs a Chromium and both services up; its last
+# result is recorded in tests/README.md). The dependency audit is a separate
+# job below, so a new advisory fails on its own line while the preflight
+# matrix still reports whether the code builds and passes.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: preflight (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    env:
+      # The web build reads these (vite.config.ts); the values `pnpm dev` uses.
+      PORT: "5173"
+      BASE_PATH: "/"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build (strict type check + bundle every package)
+        run: pnpm run build
+      - name: Lint (core rules, React hooks, static accessibility)
+        run: pnpm run lint
+      - name: Test (every layer, offline)
+        run: pnpm run test
+      - name: Client secret scan (source and bundle)
+        run: pnpm run check:client-secrets
+      - name: Repo payload ceiling
+        run: pnpm run check:size
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Reads pnpm-lock.yaml; no install needed.
+      - name: pnpm audit (high and critical)
+        run: pnpm audit --audit-level=high

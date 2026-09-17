@@ -1,0 +1,32 @@
+modules = ["nodejs-24", "python-base-3.13"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+FIREBASE_PROJECT_ID = "clausecompass-de927"
+VITE_FIREBASE_API_KEY = "AIzaSyDNi3mqKnns2QpwFCgnUsrGb_soyZwvTKE"
+VITE_FIREBASE_APP_ID = "1:145744237142:web:62175c2bf82dc45ee8e1f7"
+VITE_FIREBASE_AUTH_DOMAIN = "clausecompass-de927.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID = "clausecompass-de927"

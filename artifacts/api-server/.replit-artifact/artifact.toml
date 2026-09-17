@@ -1,0 +1,38 @@
+kind = "api"
+previewPath = "/api" # TODO - should be excluded from preview in the first place
+title = "API Server"
+version = "1.0.0"
+id = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[services]]
+localPort = 8080
+name = "API Server"
+paths = ["/api"]
+
+[services.development]
+run = "pnpm --filter @workspace/api-server run dev"
+
+[services.production]
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+# we don't run through pnpm to make startup faster in production
+args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+
+[services.production.run.env]
+PORT = "8080"
+NODE_ENV = "production"
+
+# The platform's edge replaces any X-Forwarded-For a client sends, so the
+# forwarded address can be believed here (per-client budgets key on it).
+# Elsewhere leave TRUST_PROXY unset: the default charges the socket peer.
+[services.env]
+TRUST_PROXY = "true"
+
+[services.production.health.startup]
+path = "/api/healthz"

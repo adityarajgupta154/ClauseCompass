@@ -1,0 +1,295 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+/*
+ * The three typefaces, served from this origin (Fontsource's variable
+ * builds, OFL) rather than Google Fonts: no third-party connection before
+ * the first paint, no reader's address sent to a font server, and the
+ * files are hashed and cached with the rest of the build. Each family is
+ * split by script with unicode-range, so a page fetches only the subset
+ * it shows; italic faces are fetched only where italic text appears.
+ */
+@import "@fontsource-variable/dm-sans/wght.css";
+@import "@fontsource-variable/dm-sans/wght-italic.css";
+@import "@fontsource-variable/lora/wght.css";
+@import "@fontsource-variable/lora/wght-italic.css";
+@import "@fontsource-variable/caveat/wght.css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Metric-matched stand-ins for the two reading faces (numbers from Capsize's
+ * font tables), shown until the web font arrives (font-display: swap). Each
+ * local face is scaled to DM Sans's or Lora's width and vertical metrics, so
+ * the swap changes letterforms but not line breaks or layout: no shift in
+ * the text, and the largest text paints once, early. Caveat has no stand-in;
+ * it is decoration, positioned out of the flow.
+ */
+@font-face {
+  font-family: "DM Sans Fallback: Arial";
+  src: local("Arial"), local("ArialMT");
+  ascent-override: 94.9001%;
+  descent-override: 29.6563%;
+  line-gap-override: 0%;
+  size-adjust: 104.531%;
+}
+@font-face {
+  font-family: "DM Sans Fallback: Roboto";
+  src: local("Roboto Regular"), local("Roboto-Regular");
+  ascent-override: 94.6922%;
+  descent-override: 29.5913%;
+  size-adjust: 104.7605%;
+}
+@font-face {
+  font-family: "Lora Fallback: Georgia";
+  src: local("Georgia");
+  ascent-override: 95.8281%;
+  descent-override: 26.1003%;
+  size-adjust: 104.9796%;
+}
+@font-face {
+  font-family: "Lora Fallback: Times New Roman";
+  src: local("Times New Roman"), local("TimesNewRomanPSMT");
+  ascent-override: 87.3264%;
+  descent-override: 23.7847%;
+  line-gap-override: 0%;
+  size-adjust: 115.2%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  /* One hue per clause-rule family (review prompts); text-safe on the page background in both schemes. */
+  --color-family-money: hsl(var(--family-money));
+  --color-family-time: hsl(var(--family-time));
+  --color-family-duty: hsl(var(--family-duty));
+  --color-family-exit: hsl(var(--family-exit));
+  --color-family-data-ip: hsl(var(--family-data-ip));
+
+  --font-sans: "DM Sans Variable", "DM Sans Fallback: Arial", "DM Sans Fallback: Roboto", Arial, Roboto, sans-serif;
+  --font-serif: "Lora Variable", "Lora Fallback: Georgia", "Lora Fallback: Times New Roman", Georgia, "Times New Roman", serif;
+  --font-hand: "Caveat Variable", cursive;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+}
+
+/*
+ * Motion for the welcome banner and the brand mark (decorative only; nothing
+ * a reader must follow). Every keyframe starts and ends at rest, so the
+ * reduced-motion rule below, which cuts each to one instant run, leaves the
+ * picture in its resting state rather than mid-move.
+ */
+@theme {
+  --animate-float: hero-float 7s ease-in-out infinite;
+  --animate-dash: hero-dash 1.6s linear infinite;
+
+  @keyframes hero-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  @keyframes hero-dash {
+    to {
+      stroke-dashoffset: -28;
+    }
+  }
+}
+
+/*
+ * The banner photograph on a wide screen: its left, top and bottom edges
+ * dissolve into the page so the scene reads as part of the screen, not a
+ * framed picture. A utility (not a plain class) so it can take the lg: variant.
+ */
+@utility hero-photo {
+  mask-image: linear-gradient(to right, transparent 0%, black 16%), linear-gradient(to bottom, transparent 0%, black 12%, black 90%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 16%), linear-gradient(to bottom, transparent 0%, black 12%, black 90%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
+/*
+ * A faint paper grain for the footer band: a tiled fractal-noise SVG,
+ * multiplied over the band's colour at a low opacity by the element that
+ * carries it. Rendered once per tile; nothing about it moves.
+ */
+@utility paper-grain {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.30 0 0 0 0 0.24 0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  background-size: 160px 160px;
+}
+
+:root {
+  --background: 42 40% 96%;
+  --foreground: 220 28% 18%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 220 28% 18%;
+  --card-border: 40 25% 88%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 28% 18%;
+  --popover-border: 40 25% 88%;
+
+  --primary: 15 65% 40%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 40 25% 90%;
+  --secondary-foreground: 220 28% 18%;
+
+  --muted: 42 20% 91%;
+  --muted-foreground: 215 16% 40%;
+
+  --accent: 40 25% 90%;
+  --accent-foreground: 220 28% 18%;
+
+  /* Deep brick red: 6.1:1 as text on the paper background, 6.6:1 with white on it. */
+  --destructive: 350 65% 42%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 40 25% 88%;
+  --input: 40 25% 88%;
+  --ring: 15 65% 40%;
+
+  /* Family hues: each at least 5.8:1 as text on the paper background. */
+  --family-money: 152 60% 24%;
+  --family-time: 216 60% 36%;
+  --family-duty: 272 45% 38%;
+  --family-exit: 24 75% 34%;
+  --family-data-ip: 190 70% 24%;
+
+  --radius: 0.75rem;
+}
+
+/*
+ * The dark theme: the same tokens, for the `dark` class the display store
+ * puts on the root (the reader's choice, or the device's setting). Screen
+ * only: the printed packet is paper, whatever the screen is set to.
+ */
+@media screen {
+  .dark {
+    --background: 220 25% 10%;
+    --foreground: 45 25% 94%;
+
+    --card: 220 25% 13%;
+    --card-foreground: 45 25% 94%;
+    --card-border: 220 20% 22%;
+
+    --popover: 220 25% 13%;
+    --popover-foreground: 45 25% 94%;
+    --popover-border: 220 20% 22%;
+
+    --primary: 12 70% 64%;
+    --primary-foreground: 220 25% 10%;
+
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 45 25% 94%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 220 18% 72%;
+
+    --accent: 220 20% 20%;
+    --accent-foreground: 45 25% 94%;
+
+    /* Lifted red for dark surfaces: 6:1 as text on the dark background. */
+    --destructive: 0 75% 68%;
+    --destructive-foreground: 220 25% 10%;
+
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 12 70% 64%;
+
+    /* Family hues lifted for dark surfaces: each at least 9.6:1 as text on the dark background. */
+    --family-money: 150 45% 68%;
+    --family-time: 214 75% 78%;
+    --family-duty: 272 60% 82%;
+    --family-exit: 30 80% 72%;
+    --family-data-ip: 188 60% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  /* The site header is pinned from lg up; leave room for it when focus or an in-page link scrolls a target into view. */
+  @media (min-width: 64rem) {
+    html {
+      scroll-padding-top: 6rem;
+    }
+  }
+  /* A heading given focus on arrival (RouteFocus, or the banner's link on the welcome screen) shows where the reader is, like any other focused element. */
+  h1[tabindex="-1"]:focus-visible,
+  h2[tabindex="-1"]:focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 6px;
+    border-radius: 4px;
+  }
+  /* Remove automatic transitions that might violate prefers-reduced-motion, rely on explicit transitions */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+/*
+ * Print (the Preparation Packet, FR-09): A4 with an ordinary margin, white
+ * paper whatever the theme, and no page-coloured backgrounds behind the
+ * sheet. Components hide their own screen-only parts with print: variants.
+ */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #171717;
+  }
+  /* The text-size control scales the root (display-store); the printed packet keeps the size the sheet was laid out for. */
+  html {
+    font-size: 100% !important;
+  }
+}

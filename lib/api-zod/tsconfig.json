@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // "dom" only for the web-standard globals (Blob) that multipart bodies
+    // generate; Node 18+ provides them at runtime.
+    "lib": ["es2022", "dom"]
+  },
+  "include": ["src"]
+}

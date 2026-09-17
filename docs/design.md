@@ -1,0 +1,440 @@
+# ClauseCompass — UI design specification
+
+This file is the contract for the ClauseCompass web client (`artifacts/clausecompass`). It describes the interface as built on 15 September 2026 and is written so that a designer or an agent can rebuild or extend the UI **without inventing anything**. Every value below is taken from the code (`src/index.css` for tokens, the components and pages for everything else). Where this file and the code disagree, the code is the truth for what exists and this file is the truth for what is intended; fix one of them, do not leave both.
+
+How to use it strictly:
+
+- Use the tokens, type roles, spacing steps and component recipes in sections 2–3 as written. Do not add colours, font sizes, shadows or radii that are not listed.
+- Build screens from section 4 in the order given; every state listed there must exist.
+- Copy comes from `src/features/journey/copy.en.ts` (English) and `copy.hinglish.ts` (Hinglish). Quoted strings in this file are those files' values. Do not write new user-facing sentences without adding them there, in both languages, and running the tests (section 5).
+- Section 6 (accessibility) and section 8 (do-not list) are hard requirements. `pnpm test` (a11y and adversarial layers) and `pnpm a11y` (keyboard + axe run in a real browser) are the automated checks; a UI change is not done until both pass and the manual checks in section 9 are done.
+
+## 1. Product intent and design principles
+
+ClauseCompass explains what a legal document says, shows the exact wording each statement rests on, and prepares the reader for a conversation with a lawyer or a legal-aid service. It gives information, not legal advice. The reader is often anxious, on a phone, and may not be fluent in English legal language.
+
+The visual concept is **paper and ink**: a warm off-white page, dark ink text, one column of calm reading, a single brick-red accent used only for what the reader can act on or must notice. It reads like a well-set document, not like a dashboard.
+
+Principles that decide every screen:
+
+1. **One column, one question at a time.** Everything sits in a 48 rem (`max-w-3xl`) column with 1.5 rem side padding. There are no sidebars, tabs, modals, carousels or multi-column dashboards. The only two-column layouts are small grids of equal cards (`sm:grid-cols-2`) and the older/newer excerpt pair in Compare (`md:grid-cols-2`).
+2. **Evidence beside every statement.** Anything the model or the rules say about the document is rendered next to the document's own words (the source card). The document's words are always serif and verbatim; the product's words are sans.
+3. **State is said in words, never only in colour.** Present, not found, wording-only, withheld, low confidence, ended, deleted: each has a sentence and usually an icon. Colour reinforces; it never carries meaning alone.
+4. **Calm by default, urgent only when it is.** The primary tint (`bg-primary/5` + `border-primary/30`) marks notices; the destructive tint marks failures; the safety screen is the only place with a solid `border-2 border-primary` panel and 64 px call buttons.
+5. **Big targets, visible focus.** Every reader-facing control is at least 44 px tall (the exceptions are listed in 2.6), the main action of a screen 48–56 px, focus is a 4 px primary ring with a 2 px page-coloured offset, and the heading of every screen receives focus on arrival.
+6. **Nothing decorative.** No illustrations, stock photos, gradients, hero images, background patterns or entrance animations. The only motion is colour transitions, a spinner, a chevron rotation and the welcome screen's one-time fade-in.
+
+## 2. Foundations
+
+### 2.1 Colour
+
+Tokens are CSS custom properties holding HSL triplets (`src/index.css`), exposed to Tailwind as `bg-*`/`text-*`/`border-*` utilities through `@theme inline`. Use the utility names; never write a hex value in a component. Hex values here are the rendered equivalents for design tools.
+
+Light scheme (the only scheme the product shows today):
+
+| Token | HSL | Hex | Use |
+| --- | --- | --- | --- |
+| `background` | 45 30% 98% | #fbfbf8 | page |
+| `foreground` | 220 28% 16% | #1d2534 | text |
+| `card` / `popover` | 0 0% 100% | #ffffff | raised surfaces |
+| `border` / `input` / `card-border` / `popover-border` | 38 18% 86% | #e2ddd5 | all hairlines |
+| `primary` / `ring` | 12 62% 43% | #b2452a | actions, links, notices, focus ring (5.4:1 as text on page, 5.6:1 under white) |
+| `primary-foreground` | 0 0% 100% | #ffffff | text on primary |
+| `secondary` / `muted` | 40 20% 93% | #f1eeea | quiet panels, empty cards |
+| `muted-foreground` | 215 16% 35% | #4b5768 | secondary text (7.1:1 on page) |
+| `accent` | 40 20% 90% | #ebe7e0 | reserved, unused in screens |
+| `destructive` | 0 65% 40% | #a82424 | errors (6.9:1 on page, 7:1 with white) |
+| `destructive-foreground` | 0 0% 100% | #ffffff | text on destructive |
+| `family-money` | 152 48% 27% | #246647 | Money badges, added text in Compare |
+| `family-time` | 216 58% 38% | #295699 | Dates and duration |
+| `family-duty` | 272 38% 40% | #693f8d | Duties and restrictions |
+| `family-exit` | 24 68% 34% | #924b1c | Ending and disputes; Remedies |
+| `family-data-ip` | 190 62% 26% | #195e6b | Information and data |
+
+Every family hue is at least 6:1 as text on the page (the code guarantees 5:1). Family colours appear only in badges (`border-<family>/30 bg-<family>/10 text-<family>`) and in Compare's `<ins>` marks (`bg-family-money/20 decoration-family-money`); never as backgrounds of whole cards.
+
+Opacity variants in use: `primary/5` (notice fill), `primary/10` (badge fill, hover of outline-primary button), `primary/20` (text selection), `primary/30` and `primary/40` (notice borders, link underline), `primary/50` (list bullets), `primary/60` (hover border), `primary/90` (hover fill), `destructive/5`, `destructive/15`, `destructive/40`, `destructive/60`, `destructive/70`, `border/80`, `foreground/80`, `foreground/90`, `muted/60`, `muted-foreground/70`.
+
+Dark scheme: `.dark` values exist in `src/index.css` (background 220 22% 11% #161a22, foreground 45 25% 94% #f4f2ec, primary 12 65% 62% #dd785f, destructive 0 80% 72% #f17e7e, lifted family hues each ≥ 5:1) but **no toggle exists and no `dark:` utility is used**. Do not add a dark-mode control unless a task asks for it; if one is added, use these values unchanged.
+
+Off-token colours are allowed in exactly two places: the printed packet (`bg-white text-neutral-900` and the `neutral-200/300/400/600/700/800` scale, so the sheet prints the same in any theme) and the last-resort error boundary (`bg-gray-50`, `bg-gray-100`, `text-gray-600/700/800/900`, `bg-gray-900 text-white` button), which must not depend on the theme having loaded. Nothing else.
+
+### 2.2 Typography
+
+Two families (plus the handwriting face of the margin notes), self-hosted: the `@fontsource-variable` packages are imported at the top of `src/index.css` (weight axis only, `font-display: swap`), and each family has a metric-matched local fallback (`DM Sans Fallback` over Arial/Roboto, `Lora Fallback` over Georgia/Times, ascent/descent/size-adjust from the font metrics), so text set before the files arrive sits where the real face will and the swap moves nothing.
+
+- `font-sans` — **DM Sans** (variable, 400–700). All product text: body, labels, controls, metadata.
+- `font-serif` — **Lora** (variable, 400–700). Headings, the reader-facing intro, and **every verbatim quotation from the document** (blockquotes, place sentences, expanded paragraphs, compare excerpts are the exception: they are sans because they carry inline `<del>`/`<ins>` marks).
+
+Weights: 400 for body, 500 (`font-medium`) for headings and control labels, 600 (`font-semibold`) for card titles, statuses, primary calls to action and uppercase labels. 700 is not used.
+
+Type roles (exact classes; sizes are rem so the text-size control scales them):
+
+| Role | Classes | Where |
+| --- | --- | --- |
+| Screen title | `font-serif text-4xl font-medium tracking-tight text-foreground md:text-5xl` | every screen's `h1` (Not found: `text-3xl md:text-4xl`) |
+| Product intro | `text-xl md:text-2xl leading-relaxed font-serif text-foreground/90` | Welcome only |
+| Section heading | `font-serif text-3xl font-medium tracking-tight text-foreground` | map fields, prompt groups, timeline |
+| Sub-section heading | `font-serif text-2xl font-medium text-foreground md:text-3xl` | stage picker, concern legend, safety "why" |
+| Card title (serif) | `font-serif text-2xl font-medium tracking-tight text-foreground` | review prompt title, compare summary, resource name (`leading-snug`, no tracking) |
+| Stage label | `text-xl md:text-2xl font-serif font-medium text-foreground` | Welcome stage cards |
+| Question label | `block text-2xl md:text-3xl font-serif font-medium text-foreground` | interview |
+| Lead paragraph | `max-w-prose text-lg leading-relaxed text-muted-foreground` | under every screen title |
+| Claim (model statement) | `text-lg leading-relaxed text-foreground md:text-xl` | source card |
+| Quotation | `whitespace-pre-line font-serif text-base leading-relaxed text-foreground md:text-lg` | source card evidence |
+| Body | `text-base leading-relaxed text-foreground` or `text-foreground/90` | notices, points |
+| Body, quiet | `text-base leading-relaxed text-foreground/80` | detail under a status title |
+| Bulleted point | `li` `flex gap-4 text-base md:text-lg text-foreground/80 leading-relaxed` with a `•` span `select-none text-primary/50 mt-1` (`aria-hidden`) | boundary points, retention notice |
+| Body, muted | `text-base leading-relaxed text-muted-foreground` | descriptions, hints |
+| Status title | `text-lg font-semibold text-foreground` | notice/alert/empty-card titles |
+| Metadata | `text-sm text-muted-foreground` | file size, locations, hints, "Last checked" |
+| Label, uppercase | `text-sm font-semibold uppercase tracking-wide text-muted-foreground` | topic labels, "Older/Newer", card sub-headings |
+| Control label | `text-base font-medium` (`text-lg font-semibold` on the 56 px interview Continue, `text-xl font-semibold` on the 64 px upload Continue) | buttons and links |
+| Numbers | add `tabular-nums` | text-size readout, phone numbers |
+
+`max-w-prose` (65 ch) caps every lead, hint and explanatory paragraph. Long file names and quotes use `truncate` (single line, names) or `[overflow-wrap:anywhere]` (buttons, titles that can contain document words).
+
+### 2.3 Spacing, shape, elevation
+
+- Base unit 0.25 rem. Vertical rhythm inside a screen: `space-y-12` between sections (Welcome uses `space-y-14 md:space-y-16`, Interview `space-y-10`), `space-y-5` or `space-y-6` between cards, `space-y-4` inside a card, `space-y-3` for tight stacks, `space-y-2` for heading + description.
+- Padding: cards `p-5 md:p-6` (large: `p-6 md:p-8`), tinted notices `p-4` or `p-5 md:p-6`, list items `p-4`, page sides `px-6`, page bottom `pb-20`.
+- `--radius` is 0.75 rem. Radii in use: `rounded-2xl` (1.25 rem: cards, slots, notices, textarea), `rounded-xl` (1 rem: buttons, expanded paragraphs, excerpt boxes), `rounded-3xl` (safety emergency panel, not-found icon tile), `rounded-md` (text links and back links, skip link), `rounded-full` (badges, pills), `rounded-sm` (inline `<del>`/`<ins>`, inline links), `rounded` (checkbox).
+- Borders: `border` (1 px) for resting cards, `border-2` for interactive cards, slots, buttons and alerts, `border-2 border-dashed` for "nothing here" cards, `border-l-4` for evidence panels and places (`border-primary/40` on the source panel, `border-border` on places), `border-t` for section breaks and the footer, `border-b-2 border-neutral-900` for the packet header.
+- Elevation: `shadow-sm` on cards and slots; `shadow-md ring-1 ring-neutral-200` on the on-screen packet sheet; `shadow-lg` on the 64 px primary actions (the upload and analysis Continue, the packet's official-help link) and the analysing card. No other shadows.
+- Hover on interactive cards and outline buttons changes the border colour (`hover:border-primary/60`), never the size or position. Primary buttons darken (`hover:bg-primary/90`). Text links darken the underline (`hover:decoration-primary`).
+
+### 2.4 Icons
+
+Lucide icons only, always with `aria-hidden="true"` and a text label beside them (icon-only buttons carry an `aria-label`). Sizes: `h-4 w-4` inside badges and small labels, `h-5 w-5` in buttons and links, `h-6 w-6` for status titles and section markers, `h-7 w-7` (Siren) on the safety panel, `h-9 w-9` (Upload) in the empty slot, `w-12 h-12` on the not-found tile. Icons used and their meaning: ArrowLeft (back), ArrowRight (forward), Check (done/chosen), AlertCircle (error), AlertTriangle (caution/low confidence/ambiguity), Info (boundary/notice), ShieldCheck (data handling, deletion, Information and data family, a checked listing), Clock (retention), LoaderCircle (busy, `animate-spin motion-reduce:animate-none`), FileText (a document/location), FileQuestion (not found), FileCheck2 (no differences), EyeOff (withheld statement), Quote (wording-only), ChevronDown (disclosure, `rotate-180` when open), Volume2/Square (read aloud/stop), Languages, AArrowDown/AArrowUp, Trash2, RotateCcw (retry, start again), Upload, Printer, Download, Siren, LifeBuoy (official help), Phone (a helpline; the footer's help link), MessageSquareText, ExternalLink, CalendarDays, CalendarCheck, CalendarClock, IndianRupee, ClipboardList, ClipboardCheck, DoorOpen, Scale, Type.
+
+### 2.5 Motion
+
+- `transition-colors` on every hover; nothing transitions size, position or opacity except the disclosure chevron (`transition-transform motion-reduce:transition-none`).
+- Spinners: `animate-spin motion-reduce:animate-none`.
+- Enter animations exist only on the welcome screen (tw-animate-css `animate-in fade-in` with `motion-reduce:animate-none`, 4.1); nothing animates out.
+- `prefers-reduced-motion: reduce` collapses every animation and transition to 0.01 ms globally (`src/index.css`); spinners, chevrons and the welcome entrance additionally carry `motion-reduce:` variants.
+- Focus moves without scrolling animation: RouteFocus focuses with `preventScroll` and then `window.scrollTo(0, 0)`.
+
+### 2.6 Focus, targets, selection
+
+- `focusRing` (`src/lib/focus-ring.ts`) is used verbatim on every focusable element: `focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`. Labels wrapping a hidden native input use the `has-[:focus-visible]:` equivalents (`border-primary ring-4 ring-primary ring-offset-2 ring-offset-background`).
+- A focused `h1[tabindex="-1"]` shows `outline: 3px solid primary; outline-offset: 6px; border-radius: 4px` (base layer rule).
+- Minimum heights: 44 px for every control, 48 px for continue links and packet actions, 56 px for the interview Continue, 64 px for the upload Continue and the safety call buttons. Icon-only steppers are also `min-w-[44px]`. The exception today: the per-place paragraph toggle inside a review prompt card (`min-h-[40px]`); do not add another.
+- Text selection: `selection:bg-primary/20 selection:text-foreground` on the Welcome, Not-found and dev pages.
+- Disabled is expressed with `aria-disabled` plus `opacity-70` (buttons) or `opacity-50 cursor-default` (stepper at an endpoint), so the control stays focusable and its label readable. The one `disabled` attribute is on the four "Use this sample" buttons while a sample is loading (the list carries `aria-busy`).
+
+## 3. Components
+
+Recipes are exact class strings. `${focusRing}` means the string in 2.6.
+
+### 3.1 Page frame
+
+Every screen owns its frame (there is no layout component):
+
+```
+<div class="flex min-h-[100dvh] flex-col font-sans">            (Welcome, Not-found, dev add selection:…)
+  <SkipLink/>                                                    href="#main", "Skip to content"
+  <SiteHeader/>                                                  brand, back link, settings menu (3.2), account control
+  <header class="mx-auto flex w-full max-w-3xl items-center px-6 py-6 md:py-10">  back link (3.4); Welcome/Safety: py-10 md:py-16 title block instead
+  <main id="main" class="mx-auto w-full max-w-3xl flex-1 space-y-12 px-6 pb-20">  (Interview space-y-10; Welcome space-y-14 md:space-y-16)
+    <div class="space-y-4"> h1 (screen title) + lead </div>
+    …sections…
+  </main>
+  <SiteFooter/>                                                  see 3.13, mt-auto (every screen except Not found)
+</div>
+```
+
+Skip link: `sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md focus:outline-none focus:ring-4 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background`.
+
+RouteFocus: on every route change (not the first render), if nothing is focused, focus the first `h1` (fallback `#main`), adding `tabindex="-1"` if needed, then scroll to top. Existing focus (e.g. a status) is left alone.
+
+### 3.2 Settings menu (in the site header)
+
+The display settings live behind a gear button at the right end of the site header (`features/display/settings-menu.tsx`), in the header's control group `relative order-2 ml-auto flex shrink-0 items-center gap-2 sm:gap-3 md:order-3`, before a hairline `h-8 w-px bg-border` and the account control (3.11). Hidden in print with the header.
+
+- Gear: `button` `inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-primary transition-colors hover:bg-primary/15 ${focusRing}` with Settings `h-[1.375rem] w-[1.375rem]` stroke 1.75; `aria-label` "Settings", `aria-expanded`, `aria-controls` → the panel. Toggles the panel.
+- Panel: `section` `absolute right-0 top-[calc(100%+0.625rem)] z-50 w-[min(25rem,calc(100vw-2rem))] rounded-[1.25rem] border border-border bg-card p-2 text-left shadow-[0_24px_48px_-16px_rgba(31,42,58,0.28)]`, `aria-label` "Settings", `hidden` while closed (it stays in the tree so `aria-controls` always resolves). Closes on Escape (focus returns to the gear), on a pointer press outside gear and panel, and when focus leaves both (Tab past the last row).
+- Setting rows (`role="group"` + `aria-labelledby`): `flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2`; left, an icon disc `flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-primary` (icon `h-[1.125rem] w-[1.125rem]`, stroke 1.75) and the name `text-sm font-medium text-foreground md:text-[0.9375rem]`; right, the control, which drops under the name when the row is too narrow.
+  - Language (Globe): a segmented box `inline-flex items-center gap-0.5 rounded-xl border border-border bg-background p-0.5` holding "English" (`lang="en"`) and "Hinglish" (`lang="hi-Latn"`), `aria-pressed`. Segment class: `inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[0.625rem] px-3 text-sm font-medium transition-colors md:text-[0.9375rem] border ${focusRing}`; pressed adds `border-primary bg-primary text-primary-foreground shadow-sm`, unpressed `border-transparent text-foreground hover:bg-secondary hover:text-primary`.
+  - Text size (Type): Smaller (AArrowDown) and Larger (AArrowUp) buttons, `h-5 w-5` icons, segment class plus `min-w-[44px] !px-2 border border-border bg-card text-foreground`, `hover:border-primary/50 hover:text-primary` when a step exists, `cursor-default text-muted-foreground/60` + `aria-disabled="true"` at an endpoint; between them the readout `inline-flex min-h-[44px] min-w-[4rem] items-center justify-center rounded-[0.625rem] border border-border bg-card px-2 text-center text-sm font-semibold tabular-nums text-foreground md:text-[0.9375rem]` with `aria-live="polite"` and an sr-only "Text size {percent}%". Steps are exactly 100, 115, 130, 150 %; the value sets `html { font-size }` so every rem scales.
+  - Theme (Contrast): the same segmented box with "Light", "Dark", "System", `aria-pressed`. The choice puts the `dark` class and `color-scheme` on the root (`index.css` dark tokens, screen only); "System" follows `prefers-color-scheme` as it changes; `index.html` applies the stored choice before the first paint.
+- `hr` `mx-3 my-1.5 border-border/80`, then link rows `flex min-h-[48px] items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted md:text-[0.9375rem] ${focusRing}` (icon disc + name left, ChevronRight `h-[1.125rem] w-[1.125rem] text-muted-foreground` right): "Help & support" (CircleHelp) → `/help`; "Give feedback" (MessageSquare) → `VITE_FEEDBACK_URL` in a new tab, only when that is set to an `https:` or `mailto:` address; after another `hr`, "About ClauseCompass" (Info) → the boundary statement on the welcome screen (`/#boundary-heading`, focused and scrolled to without a page load), omitted where the header has no way home (safety screen).
+- All three settings persist under `clausecompass.display` (`display-store.ts`). Whenever Hinglish is selected, the header shows a strip under its row, `border-t border-primary/15 bg-primary/5`, text `text-sm leading-relaxed text-primary` with Languages `h-5 w-5` — "Hinglish is convenience text, not the authoritative version. The document's own wording, and every statement prepared from it, is shown as it is, untranslated; the packet is prepared in English." It is on the screen itself, not only inside the panel.
+
+### 3.3 Buttons and links
+
+| Variant | Recipe | Used for |
+| --- | --- | --- |
+| Primary, screen action | `inline-flex min-h-[64px] w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-primary px-8 text-xl font-semibold text-primary-foreground transition-colors hover:bg-primary/90 hover:shadow-lg aria-disabled:opacity-70 ${focusRing}` | Upload → Continue |
+| Primary, interview | `inline-flex min-h-[56px] items-center gap-3 rounded-xl bg-primary px-6 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90 ${focusRing}` + ArrowRight | Interview → Continue |
+| Primary, continue link | `inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-primary px-6 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 ${focusRing}` + ArrowLeft `rotate-180`, inside `flex justify-end border-t border-border pt-8 print:hidden` | end of map/review/compare |
+| Primary, medium | `inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-primary px-5 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 ${focusRing}` | Try again, Upload the document again |
+| Primary, packet action | `inline-flex min-h-[48px] items-center gap-2 rounded-xl px-5 text-base font-semibold transition-colors ${focusRing}` + `bg-primary text-primary-foreground hover:bg-primary/90` | Print or save as PDF |
+| Primary, return | `inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors ${focusRing}` | Not found → Return to start |
+| Outline | `inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-border bg-background px-4 text-base font-medium text-foreground transition-colors hover:border-primary/60 ${focusRing}` (`px-5 font-semibold min-h-[48px]` for the help entry and "Download as a text file") | sample buttons, Replace, read aloud, show sources, secondary actions |
+| Outline, primary | `inline-flex min-h-[48px] items-center gap-2 rounded-xl border-2 border-primary px-5 text-base font-semibold text-primary transition-colors hover:bg-primary/10 ${focusRing}` | Interview (compare stage) second Continue |
+| Outline, destructive intent | outline recipe with `px-5 text-base` and `hover:border-destructive/60 hover:text-destructive aria-disabled:opacity-70` + Trash2 | footer "Delete my document now" |
+| Pill link-button, primary edge | `mt-8 inline-flex min-h-[3.5rem] items-center justify-center gap-3 rounded-full border border-primary/50 bg-card py-2 pl-2.5 pr-6 text-base font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary/5 ${focusRing}`; a round badge `h-10 w-10 rounded-full bg-primary/10` with Phone `h-5 w-5` (stroke 1.75) leads, ArrowRight `h-5 w-5 shrink-0` trails | footer "Official help you can contact" |
+| Ghost | `inline-flex min-h-[44px] items-center rounded-xl px-4 text-base font-medium text-muted-foreground transition-colors hover:text-foreground ${focusRing}` | Remove file |
+| Ghost, filled hover | `inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-xl px-3 text-left text-base font-medium text-foreground transition-colors [overflow-wrap:anywhere] hover:bg-muted ${focusRing}` (`min-h-[40px] text-sm` for the per-place paragraph toggle) | show more places / show paragraph |
+| Back link | `-ml-3 inline-flex min-h-[44px] min-w-[44px] items-center gap-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground transition-colors hover:text-foreground ${focusRing}` + ArrowLeft `h-5 w-5` | header of every step |
+| Text link, underlined | `inline-flex min-h-[44px] items-center gap-2 rounded-md px-3 text-base font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary ${focusRing}` (safety "Start again" is `text-muted-foreground hover:text-foreground` + RotateCcw) | start again |
+| Inline link | `inline-flex items-center gap-1.5 rounded-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary ${focusRing}`; external links add `target="_blank" rel="noopener noreferrer"`, ExternalLink `h-5 w-5` and an sr-only "(opens in a new tab)" | resource cards |
+| Call button | `inline-flex min-h-[64px] items-center justify-center gap-3 whitespace-nowrap rounded-2xl bg-primary px-6 text-2xl font-semibold tabular-nums text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:px-8 md:text-3xl ${focusRing}` (`tel:` link, Phone icon hidden below `sm`), caption `text-base leading-snug text-foreground md:text-lg` | safety screen |
+
+Busy state: keep the label, swap the leading icon for LoaderCircle `h-5 w-5 animate-spin motion-reduce:animate-none`, set `aria-disabled="true"` and `aria-describedby` to a live status; change the label to the busy copy ("Reading your document…", "Deleting…").
+
+### 3.4 Cards and panels
+
+| Kind | Recipe | Meaning |
+| --- | --- | --- |
+| Surface card | `space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm` (`md:p-6` when it has body text; source card uses `border-border/80`) | a document, a status, a grounded statement |
+| Interactive card | `w-full text-left group relative p-6 md:p-8 bg-card rounded-2xl border-2 border-border shadow-sm hover:border-primary/60 transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:border-primary` | stage picker (a `button`) |
+| Radio card | `label` `flex cursor-pointer items-start gap-3 rounded-2xl border-2 border-border bg-card p-4 transition-colors hover:border-primary/60 has-[:checked]:border-primary has-[:checked]:bg-primary/5` + `has-[:focus-visible]` ring; native radio `mt-1 h-5 w-5 shrink-0 accent-primary`; label `block text-lg font-medium leading-snug text-foreground`, description `block text-base leading-relaxed text-muted-foreground` | concern picker on Official help |
+| Prompt card | `min-w-0 space-y-5 rounded-2xl border-2 border-border bg-background p-5 md:p-6` | review prompt, change card (page-coloured, so the source card inside it stands out) |
+| Nothing-here card | `min-w-0 space-y-3 rounded-2xl border-2 border-dashed border-border bg-muted p-5 md:p-6`; title `flex items-start gap-3 text-lg font-semibold text-foreground` with FileQuestion/EyeOff/FileCheck2 `mt-0.5 h-6 w-6 shrink-0 text-primary`; body `text-base leading-relaxed text-foreground/80` | not found in the document, withheld statement, no differences, empty group |
+| Quiet panel | `bg-muted border border-border/80 rounded-2xl p-6 md:p-8 space-y-5 shadow-sm` (Welcome boundary) or `flex items-start gap-3 rounded-2xl border border-border bg-muted p-5 md:p-6` (safety document panel, help entry) | boundary statement, side information |
+| Notice (primary tint) | `flex items-start gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-base leading-relaxed text-foreground` (icon `mt-1 h-5 w-5 shrink-0 text-primary`; larger `p-5 md:p-6` with `role="status"` and a `h-6 w-6` icon for the session-ended and deletion-confirmed notices) | wording-only, template prompt, ambiguity, session ended, deletion confirmed (the upload retention notice is a quiet panel, 4.2) |
+| Alert (destructive tint) | `role="alert"` `space-y-4 rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-5 md:p-6`; title `flex items-start gap-3 text-lg font-semibold text-foreground` + AlertCircle `mt-0.5 h-6 w-6 shrink-0 text-destructive`; detail `text-base leading-relaxed text-foreground/80`; then one primary-medium button | analysis failure, session gone |
+| Inline error | `role="alert"` `flex items-start gap-2 text-base font-medium text-destructive` + AlertCircle `h-5 w-5` | file/consent errors |
+| Emergency panel | `space-y-6 rounded-3xl border-2 border-primary bg-primary/5 p-6 shadow-sm md:p-8`; Siren `h-7 w-7`; heading `font-serif text-3xl font-medium leading-tight text-foreground md:text-4xl`; body `max-w-prose text-lg leading-relaxed text-foreground md:text-xl`; call buttons | safety screen only |
+| Safety alert on help | `flex items-start gap-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-5 text-lg font-medium text-foreground` + Siren `h-6 w-6` | Official help when a safety concern is selected |
+
+### 3.5 Badges and pills
+
+- Family badge (non-interactive `span`): `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-semibold` + `border-family-<x>/30 bg-family-<x>/10 text-family-<x>`, icon `h-4 w-4 shrink-0`, sr-only prefix "Topic:". Families → icon → label: money → IndianRupee → "Money"; time → CalendarClock → "Dates and duration"; duty → ClipboardList → "Duties and restrictions"; exit → DoorOpen → "Ending and disputes"; data-ip → ShieldCheck → "Information and data".
+- Compare kind badge: same base; money/time/duty as above, remedy → Scale → `family-exit` colours → "Remedies", wording → Type → `border-border bg-muted text-muted-foreground` → "Wording".
+- Count pill (compare summary): `rounded-full border border-border bg-background px-3 py-1 text-sm font-medium`, text "{label}: {count}".
+- "Your earlier choice" (Welcome): `inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm font-medium text-foreground` + Check `h-4 w-4`.
+- Packet family pill (print): sans `text-xs uppercase` neutral, no colour fill.
+
+### 3.6 Document slot
+
+Wrapper `space-y-3`; slot name `block text-lg font-medium text-foreground` (visible only in compare, where the two slots are named "Older version"/"Newer version"; sr-only in the single variant, where the section heading "Your document" already names it). The native `<input type="file">` is `sr-only` and the only tab stop; the visual zone is its `label`. `accept` is `.pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain`.
+
+- Empty: `group flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed bg-card px-6 py-9 text-center transition-colors hover:border-primary/60 md:py-10` + `has-[:focus-visible]` ring; border `border-border`, `border-primary bg-primary/5` while dragging, `border-destructive` when invalid. Inside, top to bottom: a disc `flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-primary` holding Upload `h-9 w-9` (strokeWidth 1.75), lifted `-translate-y-1 scale-105` on hover and while dragging (`transition-transform duration-500`, none under reduced motion); the prompt `text-base text-muted-foreground` "Drag a file here, or"; the action word drawn as a button, a span `inline-flex min-h-[3.25rem] items-center justify-center rounded-xl bg-primary px-7 text-lg font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90` "Choose a file" (the input inside the label is what takes focus and opens the picker); the hint `max-w-md text-sm leading-relaxed text-muted-foreground` (types and 10 MB limit).
+- Chosen (file or sample): `flex flex-col gap-4 rounded-2xl border-2 border-border bg-card p-5 shadow-sm transition-colors sm:flex-row sm:items-center`; FileText `h-8 w-8 text-primary`; name `truncate text-lg font-medium text-foreground`; meta row `flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground` with a "Ready" span `inline-flex items-center gap-1 font-medium text-foreground` + Check `h-4 w-4 text-primary`; actions: Replace (outline label wrapping a second hidden input) and Remove (ghost).
+- Invalid: zone border destructive, `aria-invalid`, inline error below (`aria-describedby` points at it). Error kinds: too large (with the size and "10 MB"), empty (0 bytes), unsupported type, legacy `.doc`, image (asks for a text version), extension/media mismatch. Type is checked before size.
+
+### 3.7 Form controls
+
+- Textarea (interview): `block w-full rounded-2xl border-2 border-border bg-card px-4 py-3 text-lg leading-relaxed text-foreground shadow-sm placeholder:text-muted-foreground/70 ${focusRing}`, `rows={4}`, `maxLength={1000}`, `autoComplete="off"`, labelled by the serif question label, described by the hint.
+- Checkbox (consent): native, `mt-1 h-6 w-6 shrink-0 cursor-pointer rounded border-2 border-border accent-primary ${focusRing}`; label `cursor-pointer text-base md:text-lg text-foreground leading-relaxed`.
+- Radio card: 3.4.
+
+There are no custom selects, switches, sliders, date pickers or comboboxes; if a task needs one, use the native element styled with these tokens.
+
+### 3.8 Source card (evidence)
+
+The unit that ties a statement to the document. Article `min-w-0 space-y-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-6` (inside a prompt card it uses `border-primary/30`).
+
+1. Optional topic label (uppercase label role).
+2. Claim: `text-lg leading-relaxed text-foreground md:text-xl` (English, model output).
+3. Low-confidence line when flagged: `flex items-start gap-2 text-base text-foreground/80` + AlertTriangle `mt-0.5 h-5 w-5 text-primary` — "Weak match with the document. Read the source wording before relying on this."
+4. Controls row `flex flex-wrap items-center gap-x-5 gap-y-3`: disclosure button (outline recipe, `print:hidden`, `aria-expanded`, `aria-controls`) "Show source" / "Show sources (n)" and "Hide source" / "Hide sources (n)" with ChevronDown `h-5 w-5 transition-transform motion-reduce:transition-none` (`rotate-180` open); ReadAloudButton; location line `inline-flex items-center gap-2 text-base text-muted-foreground` + FileText `h-5 w-5`, formatted "Clause 7.1 · Page 3, paragraph 27" / "Page 3, paragraph 27" / "Paragraph 27" (+ "and 1 more" / "and n more").
+5. Evidence panel `space-y-5 border-l-4 border-primary/40 pl-4 md:pl-5 print:block` (hidden when closed on screen, always printed): uppercase label "Exact wording from the document", `ol space-y-5` of `blockquote` in the quotation role, each with its location in metadata role; an unresolved quote shows `flex items-start gap-2 text-sm text-foreground/80` + AlertTriangle `h-4 w-4`.
+
+Ungrounded/withheld fallback: the nothing-here card with EyeOff, title "Not shown: no verified source in your document", then the reason and the why lines from `sourceCard.fallback`. It is not interactive.
+
+### 3.9 Review prompt card
+
+Prompt card (3.4) → `space-y-3` heading block in this order: family badge, title (serif card title, `lang="en"`), why-it-matters (`max-w-prose text-base leading-relaxed text-muted-foreground`, `lang="en"`); optional template notice (primary notice with ClipboardCheck) when the prompt is the standard check rather than a model phrasing; the source card; then "Places" (`text-sm font-semibold uppercase tracking-wide text-muted-foreground` + FileText `h-4 w-4`, count copy): the first two places open, the rest behind a ghost toggle (`print:hidden`). Each place `li` `space-y-2 border-l-4 border-border pl-4`: location (metadata), sentence (`font-serif text-base leading-relaxed text-foreground md:text-lg`), paragraph toggle (`min-h-[40px] text-sm`, Chevron `h-4 w-4`) revealing `whitespace-pre-line rounded-xl bg-muted p-4 font-serif text-base leading-relaxed text-foreground print:block`.
+
+### 3.10 Change card (Compare)
+
+Prompt card → header `flex flex-wrap items-center gap-3`: status sentence `text-lg font-semibold text-foreground` + kind badge → excerpts `grid gap-4 md:grid-cols-2`, each side: uppercase caption ("Older version"/"Newer version"), location (metadata), quote box `rounded-xl border p-4 text-base leading-relaxed text-foreground [overflow-wrap:anywhere]` — older `border-border bg-muted/60`, newer `border-primary/30 bg-primary/5`; an absent side is a dashed muted paragraph in `text-muted-foreground`. Word marks: `<del class="rounded-sm bg-destructive/15 px-0.5 text-foreground decoration-destructive/70 decoration-2">` and `<ins class="rounded-sm bg-family-money/20 px-0.5 font-medium text-foreground decoration-family-money decoration-2 underline-offset-2">`. When a whole paragraph was added or removed, the mark keeps its tint but drops the line (`no-underline`) so a long paragraph stays readable; each mark carries an sr-only "removed:"/"added:" prefix. Below: key terms line (body role) and "what to check" (body, muted, `max-w-prose`).
+
+### 3.11 Timeline
+
+Section `space-y-6`: section heading "Dates in this document", lead; `ol space-y-8` of date groups; date `h3` `flex items-center gap-3 text-xl font-semibold text-foreground` + CalendarDays `h-6 w-6 text-primary`; entries `ul space-y-4 md:pl-9` of source cards (topic = first two topics or "Date"); an ambiguous date shows the primary notice with AlertTriangle and the date "as written". Empty: nothing-here card "No full dates found in this document".
+
+### 3.12 Resource card (Official help)
+
+`article` `space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm md:p-7`: name (`font-serif text-2xl font-medium leading-snug text-foreground`), run-by line (`text-base text-muted-foreground`, label in `font-medium text-foreground`), summary (`text-base leading-relaxed text-foreground md:text-lg`), optional "Who it is for" and "How to reach" blocks (uppercase label + body), contacts as inline links (Phone `h-5 w-5` + `tabular-nums` for numbers, MessageSquareText for SMS, ExternalLink for sites), hours; footer `space-y-3 border-t border-border pt-4`: confirmation line (`flex items-start gap-2 text-base font-medium text-foreground` + Info `h-5 w-5 text-primary`) and "Last checked 15 September 2026" (`flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground` + CalendarCheck `h-4 w-4`, `en-IN` date) with the source host as an inline link. Every sentence on a card traces to its one source URL; no coverage badges, ratings or "recommended" marks.
+
+### 3.13 Footer
+
+`footer` `relative mt-auto w-full overflow-x-clip border-t border-border/60 bg-secondary/45 px-6 pt-10 md:pt-12 print:border-0 print:bg-transparent`, set like a sheet of paper: over the tint lies a grain layer (`paper-grain`, a tiled fractal-noise SVG utility in `index.css`, `absolute inset-0 opacity-[0.07] mix-blend-multiply dark:opacity-[0.05]`, `aria-hidden`, `print:hidden`). When a session exists, first a card `max-w-2xl mx-auto flex flex-col items-center gap-5 text-center print:hidden bg-card border border-border/60 p-8 rounded-3xl shadow-sm` (in a `relative mb-10 md:mb-12` wrapper) with the delete button (3.3), the note (`session.note`: "Removes the document's text and everything prepared from it, from ClauseCompass and from this browser's memory. Without this, ClauseCompass deletes it {N minutes} after your last action. Anything you have printed or downloaded stays with you.") and, on failure, an `aria-live="assertive"` line `flex items-start gap-2 text-left text-base font-medium text-destructive bg-destructive/5 p-3 rounded-xl border border-destructive/20` + AlertCircle. Then one full-width zone `relative -mx-6 px-6 pb-12 md:pb-14` holds the rest. On every screen but `/help` (the destination itself leaves it out, heading, decorations and all) it opens with the official-help section: `nav` labelled by its own eyebrow (`aria-labelledby`), `relative mx-auto flex max-w-3xl flex-col items-center text-center print:hidden`, holding the eyebrow "Official help" (`footer.helpLabel`; `text-xs font-semibold uppercase tracking-[0.18em] text-primary` between two `h-px w-8 bg-primary/70` rules), an `h2` "Official help you can contact" (`resources.entry.footer`; `mt-4 font-serif text-[1.75rem] font-medium leading-tight tracking-tight md:text-[2.125rem]`), the line "Find official legal-aid services and helplines. Each listing shows when it was last checked. No document or upload is needed." (`footer.helpLead`; `mt-4 text-balance text-lg leading-relaxed text-muted-foreground`) and the pill link-button (3.3) with the same text as the heading. Last, the boundary block `relative mx-auto flex max-w-3xl flex-col items-center` (`mt-10` after the section): a `h-px w-14 bg-border` rule (`mb-5 print:hidden`) over the line `text-center text-sm leading-relaxed text-muted-foreground md:text-base`: "ClauseCompass gives information, not legal advice."
+
+On a margin of 13 rem or more beside the 48 rem column (about 1264 px at 100 % text; the text-size control closes the margin) the zone's margins carry decorations, each in a self-clipping margin box (`overflow-hidden`, so nothing lengthens the page or reaches the words): left, an olive-branch cutout (`footer-olive.webp`, `w-[14rem] -rotate-[14deg]`, anchored past the page edge at the band's middle) with the handwritten line "More people. Fairer tomorrows." (`footer.asideNote`; `font-hand text-[1.45rem] font-semibold text-foreground/70 -rotate-[9deg]`) below and to its right; right, a compass rose drawn inline in `currentColor` (`text-foreground opacity-[0.11] dark:opacity-[0.14]`, four long and four short two-tone points, a ring of ticks, N E S W in the serif, from `footer.compassPoints`) at the top corner and, at the bottom corner, a stack of cream note cards with a fountain pen (`footer-cards.webp`, `w-[15rem]`) whose top card carries "Information supports fairer decisions." (`footer.cardNote`; `font-serif uppercase tracking-[0.16em] text-[max(6.2cqw,8px)]` in the fixed ink `#1F2A3A`, `-rotate-[13deg]`, sized by the stack's own container). All `aria-hidden`, `pointer-events-none`, `print:hidden`.
+
+### 3.14 Read-aloud button
+
+Rendered only when the browser supports speech. Outline recipe with `max-w-full text-left [overflow-wrap:anywhere] print:hidden`; Volume2 idle → "Read aloud", Square `fill-current` active → "Stop reading"; a `role="status"` line (`basis-full text-sm text-foreground/80 print:hidden`, sr-only unless it failed) says "This browser could not start speech…". Leaving the screen stops speech.
+
+### 3.15 Error boundary
+
+Last resort, theme-independent: `min-h-screen w-full flex items-center justify-center bg-gray-50 p-6` → `max-w-lg w-full text-center`: "Something went wrong" (`text-xl font-semibold text-gray-900`), "This part of the app hit an error. The rest of the app is still running." (`mt-2 text-sm text-gray-600`), dev-only `<pre>`, "Try again" (`mt-4 rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700`). The routed boundary resets on navigation and moves focus to the message.
+
+## 4. Screens
+
+Routes (`src/App.tsx`, Wouter under the artifact base path). Guards, applied in the order listed: NE = redirect to `/safety` while escalated; S = needs a chosen stage else `/`; A = needs a signed-in reader else `/sign-in?next=<path>` (inside S, so a visitor without a stage goes to the start, not to sign-in; nothing renders while the persisted sign-in is being restored); D = needs the documents for the stage else `/upload`.
+
+| Path | Screen | Guards | Back target |
+| --- | --- | --- | --- |
+| `/` | Welcome | NE | — |
+| `/sign-in` | Sign in (a signed-in reader is sent straight on to `next`) | NE | `/` "Back to start" |
+| `/upload` | Upload | NE S A | `/` "Change your situation" |
+| `/interview` | Interview | NE S A D | `/upload` |
+| `/map` | Document map | NE S A D | `/interview` "Back to the questions" |
+| `/review` | Review prompts | NE S A D | `/map` "Back to the document map" |
+| `/compare` | Compare (compare stage only, else `/map`) | NE S A D | `/review` "Back to the review prompts" |
+| `/packet` | Preparation packet | NE S A D | `/compare` "Back to what changed" or `/review` |
+| `/safety` | Safety | needs escalation else `/` | none (only "Start again from the beginning") |
+| `/help` | Official help | none | history back, or `/` |
+| `/dev/source-card` | Source-card gallery (dev build only) | NE | — |
+| `*` | Not found | NE | "Return to start" |
+
+The journey is linear: Welcome → (Sign in, once) → Upload → Interview → Map → Review → (Compare) → Packet, with the footer's delete and help available on every step. There is no progress indicator; the back link and the screen title carry the position. Sign-in guards the document journey only; the welcome, help, safety and not-found screens never ask for it, so a helpline is never behind a login. `next` is honoured only when it is one of the gated paths (`GATED_PATHS` in `features/auth/require-auth.tsx`), otherwise sign-in returns to `/upload`.
+
+**Header account control** (`features/auth/auth-control.tsx`, in the site header's right-hand group after the settings menu (3.2), on every screen with the home link except the sign-in screen and the safety screen): signed out, a filled link "Sign in" with LogIn `h-5 w-5` to `/sign-in` (`bg-primary text-primary-foreground shadow-sm hover:bg-primary/90`); signed in, an sr-only "Signed in as {name}", the name on screen from `lg` up (UserRound `h-5 w-5`, `max-w-[12rem] truncate`, `aria-hidden`) and an outlined button "Sign out" with LogOut (`border border-border bg-card text-foreground hover:border-primary/50 hover:text-primary`). Shared class: `inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-xl px-0 py-2 text-base font-semibold transition-colors aria-disabled:opacity-70 sm:px-4 ${focusRing}`; below `sm` both are their icon alone, the label `sr-only sm:not-sr-only`. Sign out deletes the open session first (the footer's delete, without its confirmation), then drops the identity and returns to `/`; while it runs the button reads "Signing out…" and is `aria-disabled`. Nothing renders while the persisted sign-in is still being restored. When the signed-in reader changes under an open journey (signed out from another tab, a lapsed sign-in, someone else signing in on the same tab), `features/auth/principal-boundary.tsx` renders nothing for one commit while the journey forgets that reader — files, session and its cached outputs, chosen situation; a safety escalation stays — so the next reader sees none of it and the tab returns to the start.
+
+### 4.1 Welcome (`/`)
+
+Header block (`w-full px-6 py-10 md:py-16 max-w-3xl mx-auto`): h1 "ClauseCompass" (`text-4xl md:text-5xl font-serif font-medium text-foreground tracking-tight`), tagline `mt-3 text-xl text-muted-foreground` "Plain-language navigation for legal documents." Main, in order:
+
+1. Deletion status (only after "Delete my document now" or a completed journey): primary notice, `role="status"`, focusable, ShieldCheck `h-6 w-6`, title `text-lg font-semibold text-foreground`, body `text-base leading-relaxed text-foreground/80`.
+2. Intro paragraph (product intro role): "Bring the document that is worrying you. ClauseCompass explains what it says in plain language, shows you where it says that, and helps you prepare for a conversation with a lawyer or a legal-aid service."
+3. Boundary panel (quiet panel): header row `flex items-start md:items-center gap-3` with Info `w-6 h-6 text-primary` and the title "Information, not legal advice" (`text-xl font-semibold tracking-tight text-foreground`), then `ul space-y-4` of three bulleted points (from `boundary.points`).
+4. Stage picker `space-y-8 pt-4`: heading "What brings you here today?" (sub-section heading), lead "Pick the moment you are in. It decides which clauses and dates the analysis looks at first.", `ul grid gap-5` of three interactive cards — "Before signing", "A problem started", "Compare two versions" — each with label (stage label role, `group-hover:text-primary`), description (`text-base md:text-lg text-muted-foreground leading-relaxed`), example (`text-sm md:text-base font-medium text-primary mt-2 block`, e.g. "For example: a first job offer, or an NDA a client has sent over."), and the "Your earlier choice" badge on the stage chosen before. Choosing navigates to `/upload`.
+5. Official-help entry: a full-width tinted band (`relative -mb-14 overflow-x-clip bg-secondary/60 py-14 md:-mb-20 md:py-16`, pulled down to meet the footer) holding one card `mx-auto grid max-w-[66rem] gap-8 rounded-2xl border border-border/70 bg-card p-7 … md:p-10 lg:grid-cols-[minmax(0,1.7fr)_1px_minmax(0,1fr)] lg:gap-8`. Left: round badge `h-[4.5rem] w-[4.5rem] rounded-full bg-secondary text-primary` with LifeBuoy `h-9 w-9`, heading "Need to reach a service now?" (`font-serif text-3xl font-medium leading-tight tracking-tight md:text-[2.25rem]`), body (`text-lg leading-relaxed text-muted-foreground`), filled link-button "See official help" + ArrowRight (`min-h-[3.5rem] rounded-xl bg-primary px-8 text-lg font-semibold text-primary-foreground`). A hairline column from `lg`. Right: `ul` of three points (`welcome.helpPoints`: "Official sources", "Last-checked dates", "No upload needed", each with a one-line description), badge `h-11 w-11 rounded-full bg-secondary text-primary` with Phone / ShieldCheck / Users `h-5 w-5`, title `font-serif text-lg font-medium leading-snug`, line `text-[0.9375rem] leading-relaxed text-muted-foreground`; below `lg` the list stacks under the button after `border-t border-border/70 pt-7`. On a margin of 13 rem or more (about 1536 px at 100 % text) decorative cutouts sit in the page margins: books with a plant behind on the left, a brass balance on a stone block with the handwritten line "Help today for a fairer tomorrow." (`welcome.helpAside.note`) on the right — all `aria-hidden`, `pointer-events-none`, `print:hidden`.
+
+### 4.2 Upload (`/upload`)
+
+Header with the back link "Change your situation" (to `/`). Main `flex-1 w-full space-y-16 py-12 md:py-16`: each block centres itself at its own width, and two bands run full width so that the pictures beside them can use the page margins (the same margin-decoration pattern as 4.1, item 5: `MarginAside`, shown from `lg` once the margin is wide enough, `aria-hidden`, `pointer-events-none`, `print:hidden`, handwritten and typed lines from copy and sized in container units). In order:
+
+1. Session-ended notice, only when the reader was sent here by an expiry, in `mx-auto max-w-4xl px-6`: `flex items-start gap-4 rounded-3xl border border-primary/20 bg-card p-6 md:p-8 shadow-sm` + focusRing, `role="status"`, focusable and focused on arrival; Clock `h-6 w-6 text-primary` in a `h-12 w-12 rounded-full bg-primary/10` disc; title `text-xl font-semibold tracking-tight` from `session.expiredTitle`, body `text-lg leading-relaxed text-foreground/80`.
+2. Title band (`relative overflow-x-clip`): the block `mx-auto max-w-3xl space-y-6 px-6 text-center` with the h1 `font-serif text-4xl font-medium leading-tight tracking-tight md:text-[3.5rem]` "Upload your document" / "Upload both versions"; lead `text-balance text-xl leading-relaxed text-muted-foreground` — "A PDF, DOCX or TXT file of up to 10 MB. Scans and photos cannot be read yet, so ask for a text version if that is all you have." (compare: "The older and the newer version, each a PDF, DOCX or TXT file of up to 10 MB. Scans and photos cannot be read yet."); the situation pill `mt-2 inline-flex items-center gap-3 rounded-full border border-border/80 bg-card px-5 py-2.5 shadow-sm`: "Your situation" in `text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground`, a `h-5 w-px bg-border` divider, the stage label in `font-serif text-lg font-medium text-foreground`. Beside the block on a margin of 10 rem or more (`beside="53rem"`): a handwritten line each side, `font-hand font-semibold leading-[1.15] text-foreground/80` in a 8 rem box (`text-[max(19cqw,12px)]`) with a primary-coloured stroke drawn under it — "Same documents. Clearer answers." (`-rotate-[12deg]`, left) and "Upload. Understand. Be prepared." (`-rotate-[10deg]`, right) (`upload.aside.left`/`right`).
+3. Form `space-y-16` (`noValidate`), opening with one band (`relative space-y-8 overflow-x-clip`) that holds the document card and, under it, the retention notice; on a margin of 13 rem or more (`beside="66rem"`) a plant sits low on the left (`stage-leaf.webp`, `w-[24rem] -rotate-[20deg] opacity-90 blur-[1.5px]`, allowed to run off the page's edge) and a stack of paper with a fountain pen on the right (`upload-papers.webp`, a 17 rem box `rotate-[24deg]` hanging 3 rem below the band, with the typed line "A fairer tomorrow begins with clearer information." (`upload.aside.paper`) on the top sheet in `font-serif uppercase tracking-[0.12em]` and ink, `INK`, whatever the colour scheme).
+   a) Document card, `mx-auto max-w-[73rem] px-6`: section `grid gap-5 rounded-2xl border border-border/70 bg-card p-4 shadow-[0_28px_56px_-28px_rgba(31,42,58,0.28)] md:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]`, `aria-labelledby` the documents heading. Left, from `lg` only, the picture tile (`DocumentArt`: `rounded-xl bg-secondary/50`, `min-h-[22rem]`, a 4:3 scene centred in it so two stacked slots do not stretch it): a `bg-secondary` disc, the folder photograph (`upload-folder.webp`, a red folder with its sheets fanned out) with the word "Contract" (`upload.art.label`) set on the front sheet in ink (`font-serif font-medium uppercase tracking-[0.14em] -rotate-[4deg]`) and the handwritten "Your document here" (`upload.art.note`, `font-hand font-semibold text-foreground/80 -rotate-[8deg]`) with a short primary-coloured curve towards the sheet; `aria-hidden`, `pointer-events-none`, `print:hidden`. Right, `flex flex-col justify-center gap-5 p-2 md:p-4 lg:p-6`: the h2 as an eyebrow `text-xs font-semibold uppercase tracking-[0.18em] text-primary` "Your document" or, for compare, "The two versions", over `grid gap-6` of the slot(s) (3.6) — in compare the two slots "Older version" and "Newer version", stacked.
+   b) Retention notice, `mx-auto max-w-[66rem] px-6`: section `space-y-6 rounded-2xl border border-border/70 bg-card p-7 shadow-sm md:p-9`; header row `flex items-start gap-5 md:items-center` with ShieldCheck `h-6 w-6` (strokeWidth 1.75) in a `h-12 w-12 rounded-full bg-secondary text-primary` disc and the h2 `font-serif text-2xl font-medium leading-snug tracking-tight md:text-[1.75rem]` "Before you upload: how your document is handled"; `ul space-y-5 md:pl-[4.25rem]` (indented under the heading's text from `md`) of three points `flex gap-4 text-lg leading-relaxed text-foreground/80`, each opened by an em dash in `text-xl font-bold text-primary/60`; the second names the TTL in minutes, or "a short while after your last action" while the policy is still loading or failed to load. It stands under the file input and above the consent that refers to it, so it is read before anything is sent: choosing a file sends nothing, pressing Continue does.
+   c) Samples section `mx-auto max-w-4xl space-y-8 rounded-3xl border border-border/50 bg-muted/20 p-8 md:p-10`: intro `space-y-3 max-w-2xl` with the `h2` `text-2xl font-serif font-medium` "No document handy? Try a sample" and the lead `text-lg text-muted-foreground leading-relaxed`; `ul grid gap-6 sm:grid-cols-2` with `aria-busy` while loading, each sample a card `flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition-colors hover:border-primary/30 hover:shadow-md`: FileText `h-5 w-5 text-primary` in a `h-10 w-10 rounded-lg bg-primary/10` tile beside the `h3` `text-lg font-semibold pt-1.5`, description `flex-1 text-base text-muted-foreground leading-relaxed pl-14`, and in `pl-14 pt-2` the outline button "Use this sample" (`min-h-[44px] rounded-xl border-2 border-border bg-background px-5 text-base font-semibold` + focusRing, `hover:border-primary/60 hover:text-primary`, `disabled:opacity-50` — all four `disabled` while one loads); under the list a polite status line, `sr-only` until it has something to say, then `flex items-start gap-3 text-lg font-medium p-4 rounded-xl border` tinted primary (`text-primary bg-primary/5 border-primary/20`) or, on failure, destructive with AlertCircle `h-6 w-6`.
+   d) Consent `mx-auto max-w-2xl space-y-8 border-t border-border/80 pt-12`: the whole row is the `label` for the checkbox, `flex items-start gap-5 cursor-pointer rounded-2xl border-2 p-6 transition-colors shadow-sm`, `border-border bg-card hover:border-primary/40` until ticked, then `border-primary bg-primary/[0.02]`; the native checkbox is `peer sr-only` and a drawn `h-7 w-7 rounded-md border-2` box beside it shows the state (`border-primary bg-primary` + Check `h-5 w-5 text-primary-foreground` when ticked) and takes the ring through `peer-focus-visible:ring-4`; the text `text-xl font-medium leading-relaxed` "I have read how my document is handled, and I want to continue."; `role="alert"` errors as `flex items-start gap-3 text-lg font-medium text-destructive bg-destructive/5 p-4 rounded-xl border border-destructive/20` with AlertCircle `h-6 w-6`; the API failure as a focusable `role="alert"` panel `rounded-2xl border-2 border-destructive/40 bg-destructive/[0.02] p-6 text-lg font-medium text-foreground` + focusRing.
+   e) Continue, centred in `flex flex-col items-center gap-4 pt-4`: `inline-flex min-h-[64px] w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-primary px-8 text-xl font-semibold text-primary-foreground transition-colors hover:bg-primary/90 hover:shadow-lg aria-disabled:opacity-70` + focusRing, "Continue" + ArrowRight `h-6 w-6` (while uploading: LoaderCircle `h-6 w-6 animate-spin motion-reduce:animate-none` and "Reading your document…", `aria-disabled`), with its `aria-live="polite"` progress line (`text-base font-medium text-primary` while uploading, `sr-only` otherwise).
+
+States: no file (Continue shows an inline error on press), invalid file (slot error), sample loading (buttons disabled, list busy), uploading ("Reading your document…" with the LoaderCircle in the button, `aria-disabled`, live status), API failure (`role="alert"` inline error that receives focus), session ended (notice above the title, focused), drag-over (slot tint).
+
+### 4.3 Interview (`/interview`)
+
+Header with the back link "Back to upload". Main `space-y-10`: h1 "Next: a few quick questions"; "Ready" file list (`space-y-4`, muted heading, rows `flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm` with FileText `h-6 w-6`, name, size) or the placeholder; form `space-y-10` with one free-text question ("Before the document: is there anything about your situation to say first?", serif question label, hint, textarea) — there is no choice-type question UI; sample answers ("Try a sample answer", lead, outline buttons with MessageSquareText `h-4 w-4`, polite status); the 56 px primary Continue + note; in the compare stage a second outline-primary Continue. The answer never leaves the browser; on Continue the safety scan may route to `/safety` instead of `/map` (or `/compare`).
+
+### 4.4 Safety (`/safety`)
+
+No back link, no display of anything the reader typed, no upload or analysis path. Header `px-6 pt-10 md:pt-16`: h1 "Your safety comes first" (focused on arrival, `rounded-md` ring). Main `space-y-12 px-6 py-10 md:py-12`, in order:
+
+1. Emergency panel with the situation heading ("If you are in danger now" / "If someone is forcing or holding you" / "If a child is at risk" / "If you are thinking of ending your life"), body, call buttons (numbers from the resource registry only).
+2. "Why you are seeing this" (sub-section heading, body `max-w-prose text-base leading-relaxed text-foreground/90 md:text-lg`).
+3. "Who can act on this": the links note, then the guidance cards (resource cards).
+4. More-help link to `/help?concern=safety` (outline-primary recipe + ArrowRight).
+5. "Your document" quiet panel with ShieldCheck: the deletion status, worded truthfully ("is being deleted" / "has been deleted" / "could not confirm… deleted on its own N minutes after your last action").
+6. "Start again from the beginning" (underlined text link + RotateCcw). Every other route except `/help` redirects here while escalated.
+
+### 4.5 Document map (`/map`)
+
+Shared analysis chrome (3.1) with h1 "Your document map", lead "What the document says on six points, in plain language. Every statement shows the exact wording it rests on; when a point is not in the document, it says so." Status region `aria-live="polite"`:
+
+- Analysing: surface card `flex items-start gap-3 … text-lg` with LoaderCircle `h-6 w-6 text-primary` and the analysing sentence.
+- Failure: alert card with the API's message and "Try again"; session gone (404): alert with "Upload the document again" instead.
+- Ready: document status card (FileText, name, summary, "sent" line); read-aloud row `flex flex-wrap justify-end gap-3` ("Read the whole map aloud"; Review prompts: "Read all the prompts aloud"); six field sections in this order with these headings — Who is bound by it · How long it lasts · Money · Duties and restrictions · How it can end · If there is a dispute — each `space-y-5` with section heading, description (muted), then either source cards (`space-y-4`), a wording-only notice (Quote icon; reason: model unavailable or nothing verified) above verbatim excerpts, or the nothing-here card ("not found" title/body); a withheld count line `text-base leading-relaxed text-foreground/80` when statements were dropped; the timeline (3.11); continue link "Continue to the review prompts".
+
+### 4.6 Review prompts (`/review`)
+
+Same chrome; h1 "Your review prompts", lead from `review.lead`. Ready body: read-aloud row; groups in order "Check first" (description "The clauses that matter most at this moment. Read each one and ask the question before you decide."), "Also worth checking", "Other clauses found" — only non-empty groups render, each `space-y-5` with section heading, description and prompt cards (3.9); a withheld note; a "not found" section listing absent clause kinds as a `grid gap-3 sm:grid-cols-2` of dashed items (`flex min-w-0 flex-col gap-2 rounded-2xl border-2 border-dashed border-border bg-muted p-4`, family badge + `text-base font-medium text-foreground [overflow-wrap:anywhere]`); continue link to `/compare` (compare stage) or `/packet`.
+
+### 4.7 Compare (`/compare`)
+
+Same chrome; h1 "What changed between the versions", lead from `compare.lead`. Ready body: summary card (surface card: heading `font-serif text-2xl font-medium tracking-tight`, count `text-lg font-semibold`, kind pills, unchanged note in muted body), change cards (3.10) or the nothing-here card "No differences found" (FileCheck2), a note, continue link to `/packet`. No model is involved; kinds are Money, Time, Duties, Remedies, Wording.
+
+### 4.8 Preparation packet (`/packet`)
+
+Same chrome with `printsBodyOnly` (main gets `print:max-w-none print:space-y-0 print:p-0`); h1 "Your preparation packet", lead from `packet.lead`. Body `space-y-6`: actions (`space-y-3 print:hidden`: row `flex flex-wrap gap-3` with primary "Print or save as PDF" + Printer and outline "Download as a text file" + Download, hint `text-sm text-muted-foreground` ("Opens your browser's print dialog; choose "Save as PDF" there to keep a copy."), an sr-only "Skip past the packet" link to the end of the document); the packet sheet; a `flex justify-end border-t border-border pt-8 print:hidden` row linking to Official help.
+
+The sheet is a fixed-English document that ignores the theme: `article` `mx-auto w-full max-w-3xl bg-white px-6 py-8 font-sans text-neutral-900 shadow-md ring-1 ring-neutral-200 md:px-12 md:py-12 print:max-w-none print:p-0 print:shadow-none print:ring-0`. Header `border-b-2 border-neutral-900 pb-6`: uppercase subtitle (`text-sm font-semibold uppercase tracking-wide text-neutral-600`), title `font-serif text-4xl font-medium tracking-tight`, notice `text-base leading-relaxed`, about lines `space-y-0.5 text-sm text-neutral-700`. Sections `mt-10 space-y-6`, each with a bordered heading (`h2` serif 3xl over `border-neutral-300`) and lead `text-sm leading-relaxed text-neutral-700`, in this order: "What the document says" · "Dates in this document" · "Questions to ask" (left-bordered `border-neutral-300 pl-4`, `h4` serif xl, sans `text-xs uppercase` family pill, why in `text-sm`, the question in serif `text-lg`) · "Records to gather" (each item with a printed checkbox) · "The exact wording, by number" (the citations; `print:break-before-page`, `grid grid-cols-[3rem_minmax(0,1fr)] gap-x-2`, neutral underlined links, `print:no-underline`) · footer `mt-12 border-t-2 break-inside-avoid` with the disclaimer (`h2` serif 2xl, list in body role). Statement text `text-base leading-relaxed`, notes `text-sm text-neutral-700`. No background fill carries meaning, so a monochrome print loses nothing.
+
+Print rules (`src/index.css`): A4, 15 mm margin, white page, `html { font-size: 100% !important }` (the text-size setting does not change the sheet); every screen-only part carries `print:hidden` (site header with the settings menu, footer controls, read-aloud, disclosure buttons, actions); every evidence panel carries `print:block` so the printed packet is complete without interaction.
+
+### 4.9 Official help (`/help`)
+
+Reachable from anywhere (footer, Welcome, Safety, Packet), never gated. Header with back (history back when arrived from inside the app, else `/`). Main `space-y-12`: h1, lead; concern `fieldset` (legend sub-section heading, hint, `grid gap-3 pt-2 sm:grid-cols-2` of radio cards; the selection lives in the URL `?concern=`, defaults from the session's document type when absent, and an unknown value is replaced in the URL rather than shown as an error); results heading (`aria-live="polite" aria-atomic="true"`), the safety alert card when a safety concern is selected, a links note, resource cards (3.12).
+
+### 4.10 Not found
+
+`main` `flex-1 flex flex-col items-center justify-center p-6 text-center space-y-8 max-w-md mx-auto`: icon tile `w-24 h-24 bg-muted border border-border/80 rounded-3xl flex items-center justify-center shadow-sm` with FileQuestion `w-12 h-12 text-primary`; h1 "Page not found" (`text-3xl md:text-4xl font-serif font-medium text-foreground tracking-tight`); body `text-lg text-muted-foreground leading-relaxed`; primary "Return to start" + ArrowLeft.
+
+### 4.11 Sign in (`/sign-in`)
+
+Frame as 3.1 with the site header's back link "Back to start" (`/`) and no account control. Set like the welcome banner (4.1): the words on the left, the form in a card on the right, over the banner's desk. `main` `relative isolate flex flex-1 flex-col overflow-hidden` holds, from `md`, the banner photograph (`hero-art-1024.webp`, `absolute inset-0 -z-20 object-cover object-[50%_70%] saturate-[0.9]`, `alt=""`) under two washes (`-z-10`: `bg-gradient-to-r from-background/95 via-background/80 to-background/55`, then `bg-gradient-to-b from-background/60 via-transparent to-background/40`), so the desk fades towards the words' side and takes the theme's colour in dark mode; a phone gets the plain page. In the page margins on a wide screen (`MarginAside` `beside="60rem" from="10rem"`, the pattern of 4.1 item 5): the banner's first handwritten note "Complex documents. Simpler answers." with its arrow on the left (`font-hand text-[max(13cqw,12px)] font-semibold text-foreground/80`, `-rotate-[8deg]`), and a sticky note on the right (`aspect-square w-[8.5rem] rotate-[5deg] rounded-sm p-4`, paper `STICKY_NOTE` with `INK` writing in both schemes, `font-hand text-[1.2rem] font-semibold`) carrying the second, "Understand today. Decide tomorrow."
+
+The content grid `relative mx-auto grid w-full max-w-[36rem] flex-1 content-start gap-10 px-6 py-10 md:py-14 lg:max-w-[60rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-10 lg:py-16`: one column (words, card, points, in that order) up to `lg`; from `lg` the words (row 1) and the points (row 2) share the left column and the card takes the right one across both rows.
+
+1. Words (`header @container space-y-5`): the line over the heading (`flex items-center gap-3 text-[0.8125rem] font-semibold uppercase tracking-[0.18em] text-primary` after an `h-px w-9 bg-primary` rule), the h1 (`font-serif text-[clamp(2.25rem,11cqw,3.5rem)] font-medium leading-[1.08] tracking-tight text-foreground ${focusRing}`, `tabIndex={-1}`) and the lead (`max-w-[34rem] text-lg leading-relaxed text-muted-foreground`) — all three by mode (`copy.auth.signIn.modes`): sign in "Welcome to ClauseCompass" / "Sign in to open your document" / "ClauseCompass opens a document for the account that uploaded it, so it needs to know which account is yours. A Google account or an email and password will do."; create "Create your account" / "A clearer understanding *starts here.*" (the end in `text-primary`; one heading, one sentence) / "An account is how ClauseCompass tells one reader's documents from another's. Create one with an email and a password, or continue with your Google account."; reset "Forgot your password?" / "Get a reset link by email" / "Enter the email address of your account. A reset email brings a link to choose a new password; afterwards, sign in here as before."
+2. Card (`rounded-3xl border border-border/70 bg-card/95 p-6 shadow-[0_28px_60px_-24px_rgba(31,42,58,0.38)] backdrop-blur-sm md:p-8`, `space-y-6` inside):
+   - "Continue with Google" — block button `inline-flex min-h-[56px] w-full items-center justify-center gap-3 rounded-2xl border-2 border-border bg-background px-6 text-lg font-semibold text-foreground transition-colors hover:border-primary/60 hover:bg-primary/5 aria-disabled:opacity-70 ${focusRing}` with Google's four-colour "G" (`features/auth/google-mark.tsx`, `h-6 w-6`, `aria-hidden`).
+   - Divider (`aria-hidden`): `flex items-center gap-4`, two `h-px flex-1 bg-border` rules around "or with email" in `text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground`.
+   - The e-mail form (`space-y-5`, `noValidate`), in one of three modes — sign in, create account, reset password. Fields: label `block text-lg font-medium text-foreground`; a `relative` wrap with the icon (`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground`; Mail, LockKeyhole) and the input `block w-full rounded-2xl border-2 border-border bg-background py-3 pl-12 pr-4 text-lg leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/80 hover:border-primary/40 aria-[invalid=true]:border-destructive ${focusRing}` — "Email" (`type="email"`, `autoComplete="email"`, placeholder "you@example.com") and, except in reset mode, "Password" (`pr-14`; placeholder "Enter your password" / "Create a password"; `autoComplete` `current-password` / `new-password`; the hint "At least 6 characters." under it, `text-base text-muted-foreground`, linked by `aria-describedby`, in create mode) with the show/hide toggle at its end (`absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground ${focusRing}`; Eye / EyeOff `h-5 w-5`; `aria-pressed`, `aria-controls` the input, name "Show password" / "Hide password"; switches the input between `password` and `text`; reset on a mode switch). One submit button per mode — "Sign in" / "Create account" / "Send reset email" — `inline-flex min-h-[56px] w-full items-center justify-center gap-3 rounded-2xl bg-primary px-6 text-lg font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 hover:shadow-md aria-disabled:opacity-70 ${focusRing}` with KeyRound `h-6 w-6`; while a request runs every button reads "One moment…" and is `aria-disabled` (never `disabled`, so focus is kept). Mode switches under it, text buttons `inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-base font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80 ${focusRing}`: sign-in mode stacks "New here? Create an account" and "Forgot your password?" (`flex flex-col items-start gap-y-0.5`); create mode is a centred sentence (`flex flex-wrap items-center justify-center gap-x-1 text-center text-base text-muted-foreground`) "Already have an account?" with the button "Sign in" + ArrowRight `h-4 w-4`; reset mode centres "Back to sign in". A switch clears the error and the reset notice, hides the password again and moves focus to the h1, which now says what the form does (the control pressed has left the page); the tab title follows the heading (`features/seo/screen-title.ts`: create and reset set it, sign-in mode leaves the route's own, the create heading's full stop dropped). One request at a time: while one runs every button — Google, submit, the mode switches — is `aria-disabled` and a further press or switch is ignored (a ref, set before React renders the busy state).
+   - Closing note under a rule (`flex items-start gap-3 border-t border-border/70 pt-5 text-base leading-relaxed text-muted-foreground`, LockKeyhole `mt-1 h-5 w-5 shrink-0`): "Signing in does not change how long a document is kept. The document and everything prepared from it still end when you delete them, or when the retention window passes; the account only marks them as yours."
+3. Points (`ul space-y-5`, `li flex items-start gap-4`): an icon in a disc (`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary`, icon `h-6 w-6` at `strokeWidth={1.75}`), a title (`text-lg font-semibold leading-snug text-foreground`) and one line (`text-base leading-relaxed text-muted-foreground`), from `copy.auth.signIn.points` (three exactly, typed as a tuple, one icon each) — sign in and reset: ShieldCheck "Your documents, under your account" / "Each opens for the account that uploaded it."; FileText "A simpler, clearer read" / "Each clause in plain words, with its source text beside it."; Users "Built for everyday people" / "Plain language. Brighter decisions."; create: FolderLock "One account, your documents" / "It is how ClauseCompass tells your documents from another reader's."; Lightbulb "Clear explanations" / "Plain words for every clause, with the source text beside them."; ShieldCheck "Kept only for a while" / "A document ends when you delete it, or when the retention window passes." No point promises safety, security or privacy, or anything the product does not do: each line is a thing the code does (a document opens for its own account; it ends on delete or when the window passes). Nothing is saved beyond the retention window; there is no "continue where you left off".
+
+States. *Error*: one panel above the fields, `role="alert"`, `tabIndex={-1}`, focused when it appears — `flex items-start gap-3 rounded-2xl border-2 border-destructive/40 bg-destructive/[0.02] p-5 text-lg font-medium text-foreground ${focusRing}` with AlertCircle `mt-0.5 h-6 w-6 shrink-0 text-destructive`; the empty field is marked `aria-invalid` and the message names it ("Enter the email address of your account.", "Enter your password."); provider failures use the fixed sentences in `copy.auth.errors` (blocked popup, closed popup, address not authorised, provider not enabled, wrong password, no account, e-mail in use, weak password, bad e-mail, too many attempts, account disabled, offline, not configured, unknown) — none of them promises anything about security. *Reset sent*: the same panel shape in the primary tint (`border-primary/30 bg-primary/5`, MailCheck `text-primary`, `role="status"`) with "A reset email is on its way to {email}. …". *Done*: `role="status"` "Signed in. Taking you to your document…" replaces the card's controls for the moment before the redirect to `next`. *Restoring*: while a sign-in the browser still holds is being restored (`state.status === "loading"`), the card is empty — the words and the points render, the form does not — until the reader is sent on or the form appears. Keyboard: Tab order is brand, back link, settings gear, Google, e-mail, password, show/hide password, submit, the mode switches; Enter in a field submits. The a11y runner audits the empty-submit error focus and the create-account mode.
+
+### 4.12 Source-card gallery (`/dev/source-card`, development only)
+
+A page of every source-card state from mock claims for visual checks; "Dev only" uppercase label, h1 with `[overflow-wrap:anywhere]`, `space-y-12`, one `h2` (`font-serif text-2xl font-medium`) per case, a `details` with the raw claim in `pre` (`mt-2 overflow-x-auto rounded-xl bg-muted p-4 text-xs leading-relaxed text-foreground/80`). Not shipped in production builds.
+
+## 5. Copy and language
+
+- All product copy lives in `copy.en.ts` and `copy.hinglish.ts` (same keys; `copy.test.ts` proves parity). Components never contain literal sentences except the theme-independent error boundary.
+- Voice: plain, direct, second person, present tense, no exclamation marks, no marketing adjectives, no absolutes ("always", "guaranteed", "100%"). Numbers only where the code or the PRD supplies them (10 MB, four samples, six points, the TTL in minutes).
+- The Responsible Language rule (PRD §8 / FR-06) forbids five registers in anything the product says about a document: a **validity verdict** ("this clause is illegal/void"), an **outcome prediction** ("you will win"), an **eligibility conclusion** ("you are entitled to"), **directive advice** ("you should sign / refuse"), and a **fairness judgement** ("this is unfair"). Review prompts must be phrased as questions or as "ask/check/confirm" constructions. A lint enforces this on rule templates, model claim text and review copy; it does not run on quoted document text. New copy that fails the lint fails `pnpm test`.
+- The boundary statement ("Information, not legal advice") appears on Welcome, in the footer of every screen, and in the packet disclaimer. Do not remove or soften it.
+- Hinglish is UI copy only: headings, labels, buttons, notices. Document quotations, model statements, rule prompts, why-it-matters lines and the packet remain English and untranslated; the header says so whenever Hinglish is selected (3.2). Buttons and text carry `lang` attributes (`en`, `hi-Latn`).
+- Quoted document text is verbatim, `whitespace-pre-line`, in serif, never edited, ellipsised or highlighted except the word-level `<del>`/`<ins>` marks in Compare.
+- Labels quoted in this file are the current English values; check `copy.en.ts` before reusing them, and add both languages when adding a key.
+
+## 6. Accessibility requirements
+
+Target: WCAG 2.2 AA (PRD §10; §12 names keyboard-only run, 200 % zoom, screen-reader labels and the language toggle as the checks). Automated evidence: `pnpm test` (a11y layer: route focus, display controls and read-aloud behaviour in happy-dom; no axe) and `pnpm a11y` (keyboard-only journeys through every screen state plus axe in the system Chromium at 1280×900, gating on critical and serious findings). Both must end with zero findings; the run prints its state count and result, and nothing here records a past result. Narrow widths, zoom and screen-reader reading order are manual checks (section 9); the automated runs do not prove them.
+
+- Structure: one `h1` per screen (the packet screen has a second `h1` inside the printable sheet, which is its own document), headings in order, `main#main`, `header`, `footer`, `nav` with an accessible name (`aria-label`, or `aria-labelledby` pointing at the footer's visible eyebrow), `section`/`article` with `aria-labelledby`, `fieldset`/`legend` for grouped choices, lists for lists.
+- Keyboard: every journey completes with Tab, Shift+Tab, Enter, Space and arrow keys; the skip link is the first tab stop; the hidden file input is the slot's only tab stop; no focus traps; nothing opens on hover.
+- Focus: the ring in 2.6 on every element; the `h1` receives focus on each route change; the routed error boundary, the session-ended notice on Upload and Upload's API-error alert move focus to their message; Upload's missing-file and missing-consent errors move focus to the file input or the checkbox they describe; analysis failures and slot errors are announced by `role="alert"` without moving focus; focus is preserved when a live region updates.
+- Live regions: `aria-live="polite"` for progress, text-size readout, results headings and analysis status; `role="alert"` for errors; `role="status"` for confirmations; `aria-live="assertive"` only for a failed deletion.
+- Names and descriptions: `aria-pressed` on toggles, `aria-expanded`/`aria-controls` on disclosures, `aria-describedby` from controls to their hints and progress lines, `aria-invalid` on a failed input, `aria-current="page"` on a help link rendered on `/help` (the footer leaves its help section out there, 3.13), `aria-disabled` instead of `disabled` (except the sample buttons, 2.6), sr-only text for icons that carry meaning and for "(opens in a new tab)".
+- Colour and contrast: text ≥ 4.5:1 (body 14.8:1, muted 7.1:1, primary 5.4:1, destructive 6.9:1, families ≥ 6:1, all on the page colour); large text and UI boundaries ≥ 3:1; no meaning by colour alone.
+- Target size ≥ 44 × 44 px (2.6); adjacent targets are separated by `gap-3` (0.75 rem) or more.
+- Text: rem-based sizes so the 100–150 % control and browser zoom to 200 % work without horizontal scrolling; `max-w-prose` measure; `leading-relaxed` on paragraphs; no justified text; no text in images — the one exception is the words printed on photographed props in the decorative pictures (book spines in the banner, beside the choice and beside the way to official help), which are `aria-hidden`, say nothing the page does not, and stay English; anything set in type or handwriting over a picture is an HTML overlay from copy.
+- Motion: 2.5. Speech: read-aloud is optional and stops on navigation.
+- Language: `html lang` follows the display language; model statements, prompt titles and why-it-matters lines carry `lang="en"` because they stay English under Hinglish; document quotations carry no `lang` (their language is unknown).
+- Time limits: the session TTL is stated in minutes in the footer and on expiry, and on the upload screen once the retention policy has loaded ("a short while after your last action" until then); expiry sends the reader to `/upload` with the files still selected and a "Your session ended" notice, never to a dead end.
+
+## 7. Responsive behaviour
+
+Breakpoints are Tailwind's: `sm` 640 px, `md` 768 px. There is no `lg`/`xl` layout; above 48 rem the column is centred with the page colour on both sides.
+
+- Below `sm`: chosen-file card stacks (`flex-col`), radio cards and absence items are one column, the call button hides its Phone icon.
+- Below `md`: titles are one step smaller (`text-4xl`, `text-3xl`…), paddings drop from `p-8/p-7/p-6` to `p-6/p-5`, header `py-6` instead of `py-10`, the compare excerpt pair stacks, timeline entries lose their `pl-9` indent, the help entry stacks, the display note is left-aligned, the packet sheet uses `px-6 py-8`.
+- Everything wraps: button rows are `flex flex-wrap gap-3`, metadata rows `flex flex-wrap`, long words break via `[overflow-wrap:anywhere]`, names `truncate` inside `min-w-0` flex children.
+- Must work at 320 px wide, at 150 % text size and at 200 % browser zoom (PRD §12) without horizontal scrolling.
+
+## 8. Do not
+
+- Do not add colours, shadows, radii, font families or sizes outside sections 2.1–2.3, or write hex/rgb values in components.
+- Do not add a sidebar, tab bar, modal dialog, drawer, carousel, stepper/progress bar, or a second column for content.
+- Do not use images, illustrations, emoji, gradients, background patterns or entrance animations.
+- Do not put meaning in colour alone, hide content behind hover, or rely on placeholder text as a label.
+- Do not use the `disabled` attribute on the reader's controls (the sample buttons while a sample loads are the one existing exception), remove focus rings, shrink a target below 44 px, or trap focus.
+- Do not translate, paraphrase, shorten or highlight document quotations (other than Compare's word marks), and do not show a statement without its source card or the withheld fallback.
+- Do not write user-facing sentences in components; do not phrase anything about a document as a verdict, prediction, entitlement, instruction or fairness judgement; do not remove the boundary line.
+- Do not show the reader's typed interview text anywhere after Continue, and do not add a back path from the safety screen into the journey.
+- Do not add a dark-mode toggle, a language other than English/Hinglish, or a font-size control outside the four steps without a task that asks for it.
+- Do not import shadcn/Radix components for things a native element can do; the client has none left (`components/ui/` was removed on 17 September 2026 once the last three, toast, toaster and tooltip, proved unused).
+
+## 9. Definition of done for a UI change
+
+1. Tokens, roles and recipes from this file only; new copy added to both copy files.
+2. `pnpm build` (strict type check) passes.
+3. `pnpm test` passes — including the a11y layer, the copy parity test and the Responsible Language lint.
+4. `pnpm a11y` passes with 0 findings on the states you touched (add the state to the runner if it is new).
+5. Checked by hand at 320 px wide with 150 % text, at 200 % browser zoom, at 768 px, at 1280 px, and in print preview for anything on the packet screen; no horizontal scrolling.
+6. Keyboard-only walk of the changed screen, including focus on arrival and that every error is announced; read it once with a screen reader in both display languages.
+7. This file updated if a token, recipe or screen changed (and `docs/README.md` if the file list changed).

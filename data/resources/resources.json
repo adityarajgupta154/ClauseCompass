@@ -1,0 +1,202 @@
+{
+  "resources": [
+    {
+      "id": "tele-law",
+      "name": "Tele-Law",
+      "runBy": "Department of Justice, Ministry of Law and Justice, Government of India, through Common Service Centres",
+      "scope": "national",
+      "summary": "Legal advice before any case is filed, given by a panel lawyer over video call or telephone. Tele-Law's own FAQ says the service is free of cost for all citizens, that it is available through Common Service Centres (CSCs) at gram panchayat level across the States and Union Territories, and that a Tele-Law mobile app connects a person to a panel lawyer directly.",
+      "whoItIsFor": "Anyone, according to Tele-Law's FAQ, which lists matters such as family disputes, domestic violence, sexual harassment at the workplace, maintenance, property and land, equal wages, maternity benefits, child protection and registering an FIR. A para-legal volunteer or the CSC operator registers the request and books the call.",
+      "contacts": [
+        {
+          "kind": "web",
+          "url": "https://www.tele-law.in/",
+          "label": "Tele-Law website"
+        },
+        {
+          "kind": "web",
+          "url": "https://www.tele-law.in/tele-law-details-of-cscvle.html",
+          "label": "Find a Common Service Centre and para-legal volunteer in your State"
+        },
+        {
+          "kind": "web",
+          "url": "https://www.tele-law.in/faq.html",
+          "label": "How Tele-Law works (its FAQ)"
+        }
+      ],
+      "sourceUrl": "https://www.tele-law.in/faq.html",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "nalsa-legal-aid",
+      "name": "NALSA: free legal aid through the Legal Services Authorities",
+      "runBy": "National Legal Services Authority (NALSA) under the Legal Services Authorities Act, 1987, with the State, District and Taluk Legal Services Authorities and Committees",
+      "scope": "national",
+      "summary": "Free legal services in civil and criminal matters for the categories named in Section 12 of the Legal Services Authorities Act, 1987: advice, a lawyer to conduct a case, court fees and paperwork, and Lok Adalats for settling disputes. NALSA's legal-aid page says a person can apply at the front office of the nearest Legal Services Authority, which sits in the court premises, by post, by email, online, or orally with the help of a para-legal volunteer.",
+      "whoItIsFor": "Section 12 covers, among others, women and children, members of Scheduled Castes and Scheduled Tribes, persons with disabilities, industrial workmen, persons in custody, victims of trafficking, mass disasters or violence, and persons whose annual income is below the ceiling set for their State (the State-wise limits are listed on NALSA's legal-aid page). NALSA's FAQ adds that a person outside these categories can still approach a Legal Services Institution for legal advice and assistance. The Authority decides each application.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "15100",
+          "label": "NALSA legal aid helpline (toll-free)"
+        },
+        {
+          "kind": "web",
+          "url": "https://nalsa.gov.in/legal-aid/",
+          "label": "What free legal aid covers, who Section 12 names, and how to apply"
+        },
+        {
+          "kind": "web",
+          "url": "https://scourtapp.nic.in/lsams/",
+          "label": "Apply for legal aid online (Legal Services Management System)"
+        },
+        {
+          "kind": "web",
+          "url": "https://nalsa.gov.in/",
+          "label": "NALSA website, with links to every State Legal Services Authority"
+        }
+      ],
+      "sourceUrl": "https://nalsa.gov.in/legal-aid/",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "consumer-helpline",
+      "name": "National Consumer Helpline (1915)",
+      "runBy": "Department of Consumer Affairs, Government of India",
+      "scope": "national",
+      "summary": "A helpline and online portal for registering a grievance about goods that were bought or a service that was paid for, and for tracking what happens to it. Grievances can be registered by phone, on the portal, by SMS or WhatsApp, and through the NCH and UMANG apps.",
+      "whoItIsFor": "Consumers with a complaint against a seller or a service provider. Whether a particular complaint is one the helpline takes up is for the helpline to say.",
+      "hours": "Helpline: every day except national holidays, 8:00 AM to 8:00 PM",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "1915",
+          "label": "National Consumer Helpline (toll-free)"
+        },
+        {
+          "kind": "phone",
+          "number": "1800-11-4000",
+          "label": "Second toll-free number"
+        },
+        {
+          "kind": "message",
+          "number": "8800001915",
+          "label": "SMS or WhatsApp"
+        },
+        {
+          "kind": "web",
+          "url": "https://consumerhelpline.gov.in/user/",
+          "label": "Register or track a grievance online"
+        }
+      ],
+      "sourceUrl": "https://consumerhelpline.gov.in/public/contact",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "cybercrime-1930",
+      "name": "National Cyber Crime Reporting Portal and helpline 1930",
+      "runBy": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs",
+      "scope": "national",
+      "summary": "For reporting cyber crime, including money lost to online financial fraud. The portal's page of State nodal officers states that online financial fraud is reported on the national cyber crime helpline 1930. The portal itself takes complaints online under three heads: crime against women or children, financial fraud, and other cyber crime.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "1930",
+          "label": "National cyber crime helpline, for online financial fraud"
+        },
+        {
+          "kind": "web",
+          "url": "https://cybercrime.gov.in/",
+          "label": "Report a cyber crime online"
+        }
+      ],
+      "sourceUrl": "https://www.cybercrime.gov.in/Webform/Crime_NodalGrivanceList.aspx",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "erss-112",
+      "name": "Emergency number 112",
+      "runBy": "Emergency Response Support System (ERSS), Ministry of Home Affairs, answered by each State's and Union Territory's emergency response centre",
+      "scope": "national",
+      "summary": "India's single emergency number. The Ministry of Home Affairs describes ERSS-112 as one number for every kind of emergency: the call is taken at the State's answering point and passed, with its details, to the police, health, fire, disaster, women's or children's service that needs to respond.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "112",
+          "label": "Emergency: police, fire, ambulance"
+        }
+      ],
+      "sourceUrl": "https://www.mha.gov.in/en/commoncontent/emergency-response-support-system-erss",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "women-helpline-181",
+      "name": "Women Helpline 181",
+      "runBy": "Ministry of Women and Child Development, run by the States and Union Territories",
+      "scope": "national",
+      "summary": "The Ministry of Women and Child Development lists 181 as the toll-free Women Helpline: the number for a woman who needs help or information.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "181",
+          "label": "Women Helpline (toll-free)"
+        }
+      ],
+      "sourceUrl": "https://wcd.gov.in/",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "child-helpline-1098",
+      "name": "Child Helpline 1098",
+      "runBy": "Ministry of Women and Child Development",
+      "scope": "national",
+      "summary": "The Ministry of Women and Child Development lists 1098 as the toll-free Child Helpline: the number for a child who needs help, and for anyone who is worried about a child.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "1098",
+          "label": "Child Helpline (toll-free)"
+        }
+      ],
+      "sourceUrl": "https://wcd.gov.in/",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "shebox",
+      "name": "SHe-Box: sexual harassment at the workplace",
+      "runBy": "Ministry of Women and Child Development",
+      "scope": "national",
+      "summary": "The Ministry of Women and Child Development's website links SHe-Box as the place to register a complaint of sexual harassment at the workplace.",
+      "contacts": [
+        {
+          "kind": "web",
+          "url": "https://shebox.wcd.gov.in/",
+          "label": "SHe-Box portal"
+        }
+      ],
+      "sourceUrl": "https://wcd.gov.in/",
+      "lastChecked": "2026-09-15"
+    },
+    {
+      "id": "tele-manas",
+      "name": "Tele-MANAS mental health helpline (14416)",
+      "runBy": "Ministry of Health and Family Welfare, National Tele Mental Health Programme",
+      "scope": "national",
+      "summary": "A toll-free tele-mental-health service of the Ministry of Health and Family Welfare. Its website says a call to either number connects the caller with a counsellor.",
+      "contacts": [
+        {
+          "kind": "phone",
+          "number": "14416",
+          "label": "Tele-MANAS (toll-free)"
+        },
+        {
+          "kind": "phone",
+          "number": "1-800-891-4416",
+          "label": "Tele-MANAS, second toll-free number"
+        }
+      ],
+      "sourceUrl": "https://telemanas.mohfw.gov.in/",
+      "lastChecked": "2026-09-15"
+    }
+  ]
+}

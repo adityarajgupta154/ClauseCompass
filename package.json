@@ -1,0 +1,57 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "dev": "pnpm --filter @workspace/scripts run dev",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "a11y": "node scripts/a11y/journey.mjs",
+    "preflight": "sh scripts/preflight.sh",
+    "check:size": "sh scripts/check-repo-size.sh",
+    "check:client-secrets": "sh scripts/check-client-bundle.sh"
+  },
+  "private": true,
+  "dependencies": {
+    "@replit/connectors-sdk": "^0.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tanstack/react-query": "catalog:",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@workspace/api-zod": "workspace:*",
+    "@workspace/grounding": "workspace:*",
+    "@workspace/resources": "workspace:*",
+    "@workspace/rules": "workspace:*",
+    "axe-core": "^4.13.0",
+    "eslint": "^10.10.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "happy-dom": "^20.14.5",
+    "playwright-core": "^1.63.0",
+    "prettier": "^3.9.6",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11",
+    "wouter": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.13.0",
+    "pnpm": ">=10"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint-plugin-jsx-a11y@6>eslint": "10"
+      }
+    }
+  }
+}

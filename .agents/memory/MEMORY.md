@@ -1,0 +1,25 @@
+- [Working mode](working-mode.md) — task scoping rules, deferred backlog, PRD refs with no content, generated architecture SVG, README rules, ESLint 10 gate decisions (jsx-a11y peer allow, Node 22.13 floor).
+- [A11y verification](a11y-verification.md) — `pnpm a11y` keyboard+axe runner on the system Chromium; focus-start sentinel, per-element keys, ancestor indicator check, axe can't parse oklch.
+- [Tailwind v4 quirks](tailwind-v4-quirks.md) — preflight's [hidden] is !important in the base layer; no utility (print:block included) can override it, toggle the hidden class instead.
+- [pdf.js in Node](pdfjs-node.md) — legacy build only, task.destroy not doc.destroy, error names, canvas override, why paragraphs use 1.3× pitch and a document-wide pitch for uniform pages.
+- [Testing setup](testing-setup.md) — vitest at the root, PRD §12 layers as projects from one path table + reporter, text-only fixtures, route tests boot the real app; happy-dom needs a tsx child.
+- [Clause-rule registry](clause-rules.md) — rules are data pinned by a golden run; tune with the fixture script, update hit lists deliberately; table was derived, not the PRD's.
+- [Decision flow](decision-flow.md) — safety cues = force/harm to a person, not hardball; escalation absorbing, client-side, deletes the session (no server gate); fixture answers for demos.
+- [Retrieval tuning](retrieval.md) — headings excluded outright, synonyms full weight when the typed word is absent, stopwords query-only; golden questions are the contract, tune data not tests.
+- [LLM call](llm-call.md) — forced tool call over fetch, quote-based support check, one validator retry, errors fail fast, alignment-based prompt-echo guard, mock reads the prompt's last line.
+- [Responsible Language lint](responsible-language.md) — derived five-register table; lint product sentences only; positive review-register check for prompts; tune via CAUGHT/PASSES + goldens.
+- [Review Prompts pipeline](review-prompts.md) — model phrases primary+secondary only; a claim needs category + quote-bearing excerpt of that rule; withheld = rejections + drops.
+- [Compare view](compare.md) — deterministic, no model; server sends kinds + verbatim values, client phrases per kind; loose label match, one-for-one gap pass, pair cap, punctuation pass.
+- [Packet export](packet-export.md) — one packet model → HTML + text, scan derives forbidden names from the payload; paper-sheet print quirks; no model call for the packet.
+- [Sessions](sessions.md) — opened at Continue, no resume after refresh, delete clears the client cache, client mirrors the server clock with DELETE-only expiry, upload race guard.
+- [Resource registry](resources-registry.md) — bundled by the client, no API; every sentence traceable to its one sourceUrl or left out; no coverage badge; guidance-key hook.
+- [Upload name handling](uploads.md) — multer preservePath/utf8 on purpose: busboy basenames traversal names and mojibakes Devanagari by default; refuse paths, test with fetch + raw bodies.
+- [Design docs](design-docs.md) — design.md + design-prompts.md are hand-derived from code; grep every class/sentence before writing; reviewers paraphrase; interview placeholder is live copy.
+- [Settings menu & theme](settings-menu.md) — image beats brief; panel anchored to the `relative` control group, hidden not unmounted; feedback row gated; theme key shared with index.html.
+- [Bilingual copy & read-aloud](bilingual-copy.md) — why the toggle is UI copy only, why copy is a read-time Proxy (never capture it), speech-engine quirks seen in real browsers.
+- [UI restyle lessons](ui-restyle.md) — design subagent rewrites strip comments/contracts; audit testid hosts, comment counts, noUnusedLocals, phone overflow, print resets before a visual pass.
+- [Hero, brand mark & margin decorations](hero-banner.md) — h1 in cqw, fixed-aspect photo overlays, MarginAside bands (clip bleeds to the box), XSS img allow-list, footer help omitted on /help.
+- [Footer paper band](footer-band.md) — straight band + grain utility, notes anchored in rem from the band middle, SVG letters via copy keys, "fair" not "behtar", crop cutouts to the alpha box.
+- [Auth](auth.md) — journey-only gate, jose over firebase-admin, 404 for foreign sessions, paired mocks; sign-in screen: mechanism-not-guarantee copy, ref busy lock, mode-titled tab.
+- [Lighthouse, SEO head & loading](lighthouse-seo-loading.md) — measure prod builds not the dev proxy; Suspense throttle + hidden old screen; rules/zod eager on purpose; preview server is the prod edge.
+- [API hardening](api-hardening.md) — budgets off in test helpers; TRUST_PROXY default false (Replit edge rewrites XFF, verified); closed CORS → happy-dom setURL; preflight order; audit job; coverage excludes.

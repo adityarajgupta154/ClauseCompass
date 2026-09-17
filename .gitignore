@@ -1,0 +1,67 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+.expo
+.expo-shared
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Replit
+.cache/
+.local/
+
+# Secrets: only the documented example file is allowed in
+.env
+.env.*
+!.env.example
+
+
+# ClauseCompass: this repo is public and must never contain a real document.
+# samples/real/ is for local experiments only; attached/uploaded files are
+# copied into docs/ or samples/ deliberately, never committed wholesale.
+samples/real/
+attached_assets/
+
+# Replit conversation transfer data
+.conversation/
+
+# Keyboard + axe audit output (pnpm a11y)
+scripts/a11y/report/

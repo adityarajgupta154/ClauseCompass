@@ -1,0 +1,110 @@
+[Synthetic test document. Every firm, person, address, amount and date below is fictional. Created for ClauseCompass testing and demos.]
+
+CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT
+
+This Confidentiality and Non-Disclosure Agreement ("Agreement") is entered into on 20 September 2026 ("Effective Date")
+
+BETWEEN
+
+Halcyon Grid Consulting LLP, a limited liability partnership registered under the Limited Liability Partnership Act, 2008, having its registered office at Unit 1104, Skyline Corporate Towers, Sector 44, Gurugram 122003, Haryana (the "Disclosing Party"),
+
+AND
+
+Mr. Kabir Anand, an independent software consultant, residing at B-23, Second Floor, Anand Vihar Apartments, Sector 22, Noida 201301, Uttar Pradesh (the "Receiving Party").
+
+The Disclosing Party and the Receiving Party are each referred to as a "Party" and together as the "Parties".
+
+BACKGROUND
+
+A. The Disclosing Party provides data-platform consulting services to enterprise clients and is considering engaging the Receiving Party as an independent contractor for a data-migration project for one of its clients (the "Purpose").
+
+B. In connection with the Purpose, the Disclosing Party may disclose certain confidential and proprietary information to the Receiving Party, and the Receiving Party has agreed to receive and hold such information on the terms of this Agreement.
+
+IT IS AGREED AS FOLLOWS:
+
+1. DEFINITIONS
+
+1.1 "Confidential Information" means all information, in any form or medium, whether or not marked as confidential, that is disclosed by or on behalf of the Disclosing Party or its clients to the Receiving Party before or after the Effective Date, including without limitation: business plans, client lists and client data, pricing, proposals, statements of work, source code, database schemas, architecture documents, credentials, personnel information, and the existence and terms of this Agreement and of any engagement between the Parties.
+
+1.2 Confidential Information does not include information that the Receiving Party can demonstrate by written records (a) was lawfully in its possession before disclosure without an obligation of confidentiality, (b) is or becomes publicly available other than through a breach of this Agreement, or (c) was independently developed by the Receiving Party without use of or reference to the Confidential Information.
+
+1.3 "Trade Secrets" means that part of the Confidential Information which the Disclosing Party designates as a trade secret, or which a reasonable person would understand to be a trade secret, including source code, algorithms, and client pricing models.
+
+2. OBLIGATIONS OF THE RECEIVING PARTY
+
+2.1 The Receiving Party shall use the Confidential Information solely for the Purpose and for no other purpose whatsoever.
+
+2.2 The Receiving Party shall hold the Confidential Information in strict confidence and shall not disclose it to any person other than to its professional advisers who need to know it for the Purpose and who are bound by written obligations of confidentiality no less protective than those in this Agreement. The Receiving Party shall remain liable for any breach by such advisers.
+
+2.3 The Receiving Party shall protect the Confidential Information using at least the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care, including keeping all Confidential Information on encrypted devices and not uploading it to any personal cloud storage, public code repository, or third-party artificial intelligence service.
+
+2.4 The Receiving Party shall notify the Disclosing Party in writing within twenty-four (24) hours of becoming aware of any actual or suspected unauthorised use or disclosure of Confidential Information, and shall co-operate with the Disclosing Party to limit its effect.
+
+2.5 If the Receiving Party is required by law, regulation or court order to disclose any Confidential Information, it shall, to the extent legally permitted, give the Disclosing Party prompt written notice so that the Disclosing Party may seek a protective order, and shall disclose only that portion of the Confidential Information which it is legally required to disclose.
+
+3. NO OBLIGATION ON THE DISCLOSING PARTY
+
+3.1 Nothing in this Agreement obliges the Disclosing Party to disclose any information, to engage the Receiving Party for the Purpose or otherwise, or to enter into any further agreement. All Confidential Information is provided "as is" without any warranty as to accuracy or completeness.
+
+3.2 This Agreement is one-way. The Disclosing Party has no confidentiality obligations to the Receiving Party under this Agreement, including in respect of any information, proposals, or work samples that the Receiving Party may share in connection with the Purpose.
+
+4. TERM AND SURVIVAL
+
+4.1 This Agreement commences on the Effective Date and continues for three (3) years, unless terminated earlier by the Disclosing Party on thirty (30) days' written notice.
+
+4.2 The Receiving Party's obligations in respect of Confidential Information shall survive for a period of two (2) years after the expiry or termination of this Agreement. The Receiving Party's obligations in respect of Trade Secrets shall survive indefinitely, for so long as the information remains a trade secret.
+
+5. RETURN AND DESTRUCTION
+
+5.1 Within seven (7) days of the Disclosing Party's written request, or of the expiry or termination of this Agreement, whichever is earlier, the Receiving Party shall return or securely destroy all Confidential Information in its possession, including all copies, notes and derived materials, and shall certify such return or destruction in writing signed by the Receiving Party.
+
+6. NON-SOLICITATION
+
+6.1 During the term of this Agreement and for twelve (12) months thereafter, the Receiving Party shall not, directly or indirectly, solicit, approach or provide services to any client of the Disclosing Party whose identity became known to the Receiving Party through the Confidential Information, or solicit for employment or engagement any employee or contractor of the Disclosing Party, without the prior written consent of the Disclosing Party.
+
+7. OWNERSHIP AND NO LICENCE
+
+7.1 All Confidential Information remains the sole property of the Disclosing Party or its clients. No licence or other right in any intellectual property is granted to the Receiving Party by this Agreement or by any disclosure, except the limited right to use the Confidential Information for the Purpose.
+
+8. REMEDIES, LIQUIDATED DAMAGES AND INDEMNITY
+
+8.1 The Receiving Party acknowledges that any breach of this Agreement may cause the Disclosing Party irreparable harm for which monetary damages would be an inadequate remedy, and agrees that the Disclosing Party shall be entitled to seek injunctive relief and specific performance in addition to any other remedies available at law.
+
+8.2 In the event of any unauthorised disclosure or use of Confidential Information by the Receiving Party, the Receiving Party shall pay to the Disclosing Party liquidated damages of INR 5,00,000 (Rupees Five Lakh only) per instance of breach, which the Parties agree is a genuine pre-estimate of the Disclosing Party's loss and not a penalty, without prejudice to the Disclosing Party's right to claim actual damages in excess of this amount.
+
+8.3 The Receiving Party shall indemnify and hold harmless the Disclosing Party, its partners, employees and clients from and against all losses, damages, costs (including reasonable legal fees) and liabilities arising out of any breach of this Agreement by the Receiving Party or its advisers.
+
+9. GOVERNING LAW AND DISPUTE RESOLUTION
+
+9.1 This Agreement shall be governed by and construed in accordance with the laws of India.
+
+9.2 Any dispute arising out of or in connection with this Agreement shall be referred to and finally resolved by arbitration under the Arbitration and Conciliation Act, 1996, by a sole arbitrator to be appointed by the Disclosing Party. The seat and venue of arbitration shall be New Delhi and the language of arbitration shall be English. The costs of arbitration shall be borne by the Receiving Party unless the arbitrator directs otherwise.
+
+9.3 Subject to Clause 9.2, the courts at New Delhi shall have exclusive jurisdiction, including for the grant of interim relief.
+
+10. GENERAL
+
+10.1 This Agreement constitutes the entire agreement between the Parties regarding its subject matter and supersedes all prior discussions. Any amendment must be in writing and signed by both Parties.
+
+10.2 The Disclosing Party may assign this Agreement to any affiliate or successor without the Receiving Party's consent. The Receiving Party may not assign or transfer any of its rights or obligations under this Agreement.
+
+10.3 No failure or delay by the Disclosing Party in exercising any right shall operate as a waiver of that right.
+
+10.4 If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect, and the invalid provision shall be replaced with a valid provision that most closely reflects the Parties' intention.
+
+10.5 Notices shall be sent in writing by e-mail with confirmation of receipt, or by courier, to: for the Disclosing Party, legal@halcyongrid.example, Unit 1104, Skyline Corporate Towers, Sector 44, Gurugram 122003; for the Receiving Party, kabir.anand@example.net, at the address stated above.
+
+10.6 This Agreement may be signed in counterparts and electronically, and each counterpart shall be deemed an original.
+
+SIGNED for and on behalf of HALCYON GRID CONSULTING LLP
+
+Sd/-
+Name: Ritika Sabharwal
+Designation: Designated Partner
+Date: 20 September 2026
+
+SIGNED by the RECEIVING PARTY
+
+______________________
+Name: Kabir Anand
+Date: ____________

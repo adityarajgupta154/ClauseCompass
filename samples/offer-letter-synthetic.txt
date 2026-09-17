@@ -1,0 +1,132 @@
+[Synthetic test document. Every company, person, address, amount and date below is fictional. Created for ClauseCompass testing and demos.]
+
+VERDANT LOOM SOFTWARE PRIVATE LIMITED
+CIN U72900KA2019PTC000000 (fictional)
+Registered Office: 3rd Floor, Tower B, Meridian Tech Park, Outer Ring Road, Bengaluru 560103, Karnataka
+
+Reference: VLS/HR/OL/2026/0417
+Date: 12 September 2026
+
+Ms. Aarohi Menon
+14, Lakeview Enclave, 2nd Cross
+Kochi 682017, Kerala
+
+Subject: Offer of Employment - Software Engineer I
+
+Dear Aarohi,
+
+Further to your interviews with us, we are pleased to offer you employment with Verdant Loom Software Private Limited ("the Company") on the terms set out in this letter and its Annexures. Please read this letter in full before accepting.
+
+1. POSITION AND REPORTING
+
+1.1 You will be employed as Software Engineer I in the Platform Engineering team, reporting to the Engineering Manager, Platform, or such other person as the Company may designate from time to time.
+
+1.2 Your initial place of work will be the Company's Bengaluru office. The Company may transfer you to any of its offices, subsidiaries or client locations in India or abroad, on such terms as it considers appropriate, with reasonable notice.
+
+2. DATE OF JOINING
+
+2.1 Your expected date of joining is Monday, 5 October 2026. If you are unable to join on this date, you must inform the Human Resources team in writing at least seven (7) days in advance. The Company may withdraw this offer if you do not join within thirty (30) days of the expected date of joining.
+
+3. COMPENSATION
+
+3.1 Your total annual cost to company (CTC) will be INR 8,40,000 (Rupees Eight Lakh Forty Thousand only), structured as described in Annexure A. Salary is payable monthly in arrears, on or before the 7th day of the following month, subject to statutory deductions including income tax and Provident Fund contributions.
+
+3.2 The variable component described in Annexure A is discretionary and is payable annually based on Company and individual performance, as assessed by the Company. No variable pay accrues for any part of a year in which you resign or are under notice.
+
+3.3 Your compensation will be reviewed annually in April. A review does not guarantee an increase.
+
+4. PROBATION
+
+4.1 You will be on probation for a period of six (6) months from your date of joining. The Company may extend the probation period by up to a further three (3) months at its sole discretion by giving you written notice before the original period ends.
+
+4.2 During probation, either party may terminate this employment by giving fifteen (15) days' written notice or salary in lieu of notice. Your employment will be confirmed in writing at the end of the probation period; confirmation is not automatic.
+
+5. WORKING HOURS AND LEAVE
+
+5.1 Normal working hours are 9:30 a.m. to 6:30 p.m., Monday to Friday, with a one-hour lunch break. You may be required to work additional hours as the needs of the business demand, without additional compensation.
+
+5.2 You will be entitled to eighteen (18) days of earned leave and twelve (12) days of casual and sick leave per calendar year, pro-rated for the year of joining, in accordance with the Company's Leave Policy as amended from time to time.
+
+6. TRAINING AND SERVICE COMMITMENT
+
+6.1 The Company will invest in an eight (8) week induction and technical training programme for you, the cost of which the Company values at INR 2,00,000 (Rupees Two Lakh only).
+
+6.2 In consideration of this investment, you agree to serve the Company for a minimum period of eighteen (18) months from your date of joining. If you resign or are terminated for cause before completing this period, you agree to repay the Company the training cost of INR 2,00,000 on a pro-rata basis for the unserved period, and the Company may adjust this amount against any dues payable to you, including your final settlement.
+
+7. TERMINATION AFTER CONFIRMATION
+
+7.1 After confirmation, either party may terminate this employment by giving sixty (60) days' written notice. The Company may, at its discretion, accept a shorter notice period or pay salary in lieu of notice. You may not buy out your notice period without the Company's written consent.
+
+7.2 The Company may terminate your employment immediately, without notice or payment in lieu, in the event of misconduct, breach of Company policy, breach of confidentiality, conviction of a criminal offence, or continued absence without approval for more than seven (7) consecutive working days.
+
+7.3 On termination for any reason, you must return all Company property, including laptops, access cards and documents, on or before your last working day. Your final settlement will be processed within forty-five (45) days of your last working day, subject to clearance from all departments and recovery of any amounts owed to the Company.
+
+8. CONFIDENTIALITY AND INTELLECTUAL PROPERTY
+
+8.1 You will keep confidential all non-public information relating to the Company, its clients, products, source code, business plans and personnel, both during and after your employment, and you will sign the Company's standard Employee Confidentiality and Invention Assignment Agreement on your date of joining.
+
+8.2 All work product, inventions, code and materials created by you during your employment, whether or not during working hours, that relate to the Company's business or are created using Company resources, will be the exclusive property of the Company.
+
+9. NON-COMPETITION AND NON-SOLICITATION
+
+9.1 For a period of twelve (12) months after your employment ends, you will not, without the Company's prior written consent, be employed by or provide services to any business in India that competes directly with the Company's products in the enterprise supply-chain software segment.
+
+9.2 For a period of twelve (12) months after your employment ends, you will not solicit or hire any employee of the Company, or solicit any client of the Company with whom you dealt in your last twelve (12) months of employment.
+
+10. BACKGROUND VERIFICATION
+
+10.1 This offer and your continued employment are conditional on satisfactory verification of your identity, education, previous employment and criminal record checks. If any information provided by you is found to be false or misleading, the Company may withdraw this offer or terminate your employment without notice.
+
+11. DATA AND MONITORING
+
+11.1 You consent to the Company collecting and processing your personal data for employment, payroll, statutory compliance and background verification purposes, and to sharing it with its group companies, payroll providers and verification agencies for these purposes.
+
+11.2 Company devices, email accounts and network access are provided for business use and may be monitored in accordance with the Company's Acceptable Use Policy.
+
+12. GOVERNING LAW AND DISPUTES
+
+12.1 This letter is governed by the laws of India. The courts at Bengaluru, Karnataka will have exclusive jurisdiction over any dispute arising out of your employment.
+
+13. ACCEPTANCE
+
+13.1 This offer is valid until 5:00 p.m. on Friday, 25 September 2026. To accept, please sign and return a scanned copy of this letter, together with the documents listed in Annexure B, to careers@verdantloom.example by that time. If we do not receive your acceptance by then, this offer will lapse automatically.
+
+13.2 This letter, together with the Company's policies as amended from time to time, sets out the entire terms of your employment and supersedes any prior discussions or communications.
+
+We look forward to welcoming you to the team.
+
+Yours sincerely,
+for Verdant Loom Software Private Limited
+
+Sd/-
+Nandita Rao
+Head of People Operations
+
+ACCEPTANCE
+
+I, Aarohi Menon, have read and understood the terms of this letter and its Annexures, and I accept the offer of employment on these terms.
+
+Signature: ______________________     Date: ____________
+
+ANNEXURE A - COMPENSATION STRUCTURE (per annum, in INR)
+
+Basic salary: 3,36,000
+House rent allowance: 1,68,000
+Special allowance: 1,90,800
+Employer Provident Fund contribution: 40,320
+Gratuity provision: 16,160
+Health insurance premium (family floater, INR 5,00,000 cover): 18,720
+Fixed pay subtotal: 7,70,000
+Variable pay (performance-linked, at target): 70,000
+Total cost to company: 8,40,000
+
+Note: The Company may restructure the components above at any time to comply with law or Company policy, provided the total cost to company is not reduced.
+
+ANNEXURE B - DOCUMENTS TO BE SUBMITTED BEFORE JOINING
+
+1. Signed copy of this offer letter.
+2. Proof of identity and address (Aadhaar or passport, and PAN card).
+3. Degree certificates and final-year mark sheets.
+4. Relieving letter and last three salary slips from the previous employer, if applicable.
+5. Two passport-size photographs.
+6. Cancelled cheque of your salary bank account.

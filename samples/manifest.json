@@ -1,0 +1,37 @@
+{
+  "$comment": "Synthetic fixtures only. Every party, address, amount and date is fictional. The client's sample picker and the test suites both read this file; keep ids stable.",
+  "samples": [
+    {
+      "id": "offer-letter",
+      "file": "offer-letter-synthetic.txt",
+      "title": "Employment offer letter",
+      "documentType": "offer_letter",
+      "suggestedStage": "before-signing",
+      "description": "A first job offer from a Bengaluru software company: probation, a training bond, a 60-day notice period, a non-compete and an acceptance deadline."
+    },
+    {
+      "id": "rental-agreement",
+      "file": "rental-agreement-synthetic.txt",
+      "title": "Leave and licence (rent) agreement",
+      "documentType": "rental",
+      "suggestedStage": "problem-started",
+      "description": "An 11-month Pune flat agreement: security deposit with deductions, a six-month lock-in, one month's notice, late fees and painting charges."
+    },
+    {
+      "id": "nda",
+      "file": "nda-synthetic.txt",
+      "title": "Non-disclosure agreement",
+      "documentType": "nda",
+      "suggestedStage": "before-signing",
+      "description": "A one-way NDA sent to a freelance consultant: broad confidentiality, liquidated damages, non-solicitation and arbitration chosen by the other side."
+    },
+    {
+      "id": "rental-agreement-v2",
+      "file": "rental-agreement-v2-synthetic.txt",
+      "title": "Leave and licence agreement, revised draft",
+      "documentType": "rental",
+      "suggestedStage": "compare-versions",
+      "description": "The same Pune flat agreement as sent back by the licensor: a higher late fee, two months' notice instead of one, deposit forfeiture on breach, a pets clause without the consent route, a new parking clause and one clause dropped."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ClauseCompass"
+description = "ClauseCompass is a GenAI-powered legal document navigator for India. It explains an uploaded offer letter, rent agreement or NDA in plain language, shows who it binds and to what and the dates and amounts in it, asks stage-aware review prompts, compares two versions of a document, and produces a source-cited preparation packet to bring to a lawyer or an official legal-aid service. Every statement is tied to a quoted excerpt of the document; there is no free-text question answering - information, never legal advice."
+version = "1.0.0"
+id = "artifacts/clausecompass"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20162
+
+[services.development]
+run = "pnpm --filter @workspace/clausecompass run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/clausecompass", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/clausecompass/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20162"
+BASE_PATH = "/"

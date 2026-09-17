@@ -1,0 +1,896 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+# Every operation needs the reader's Firebase ID token as a bearer credential unless it says `security: []`.
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+    description: Health operations
+  - name: documents
+    description: Document intake and text extraction
+  - name: sessions
+    description: The upload and the short-lived session that holds it
+  - name: analysis
+    description: Analysis views built on the grounding contract, prepared per session
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      # Open: a fact about the server, needed before anyone has signed in.
+      security: []
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /documents/extract:
+    post:
+      operationId: extractDocument
+      tags: [documents]
+      summary: Extract located text from one document
+      description: >-
+        Stateless. Accepts one PDF, DOCX or TXT file (multipart field `file`,
+        at most 10 MB and 50 pages) and returns its paragraphs with page and
+        paragraph coordinates. Nothing is stored. Files that cannot be read
+        are refused with an ErrorResponse; the message is written for the
+        person who uploaded the file.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/DocumentUpload"
+      responses:
+        "200":
+          description: Extracted paragraphs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractedDocument"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: No file attached, or a file name that is a path or is otherwise not a name (`bad-filename`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: File larger than 10 MB, or longer than 50 pages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: Unsupported type, or contents that do not match the file's type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Empty (0 bytes), password-protected, damaged, without readable text, or too complex to read within the per-document time and memory limits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Too many documents being processed; retry after the `Retry-After` seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sessions/policy:
+    get:
+      operationId: getRetentionPolicy
+      # Open: a fact about the server, needed before anyone has signed in.
+      security: []
+      tags: [sessions]
+      summary: How long a session is kept
+      description: >-
+        The retention rule the server enforces, for the notice shown before
+        anything is uploaded: a session is deleted this many minutes after
+        the last request that touched it, or at once on DELETE.
+      responses:
+        "200":
+          description: Retention policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionPolicy"
+  /sessions:
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Upload the document(s) and open a session
+      description: >-
+        The one upload. Accepts the reader's stage and either one document
+        (`file`) or, for `compare-versions`, the two versions (`older` and
+        `newer`), each under the same limits as `/documents/extract`. Each
+        file is extracted and then discarded: what the session holds in
+        memory is the extracted paragraphs, the document summaries and,
+        later, the outputs prepared from them. The session ends
+        `ttlMinutes` after the last request that touched it, or at once on
+        DELETE; the id is the only handle to it, so keep it private.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SessionUpload"
+      responses:
+        "201":
+          description: Session opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: A file missing for the stage, a file in an unexpected field, a file name that is a path or is otherwise not a name (`bad-filename`), or an unknown `stage` or `documentType`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: A file larger than 10 MB, or longer than 50 pages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: Unsupported type, or contents that do not match the file's type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Empty (0 bytes), password-protected, damaged, without readable text, or too complex to read within the per-document limits (for two versions, the message names which)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Too many documents being processed or held right now; retry after the `Retry-After` seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sessions/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: The session as it stands
+      description: >-
+        What the session holds: its documents' summaries and which outputs
+        have been prepared. Reading it counts as activity and extends the
+        session. A session that was deleted or has expired is 404.
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such session (deleted, expired, or never opened)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete the session and everything in it
+      description: >-
+        Removes the extracted paragraphs, the document summaries and every
+        prepared output, and stops any preparation still running. Answers
+        204 whether or not the session existed, so a repeated delete is not
+        an error; after it, every other request for the id is 404.
+      responses:
+        "204":
+          description: Deleted (or already gone)
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sessions/{sessionId}/document-map:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: prepareDocumentMap
+      tags: [analysis]
+      summary: Document map and date timeline for the session's document
+      description: >-
+        Runs the clause rules over the session's document (the newer version
+        for a comparison) and returns the Document Map — parties, dates,
+        money terms, duties, termination wording and dispute wording — and
+        the explicit-date Timeline. Every map field is in an explicit state:
+        `found` (verified restatements of the selected paragraphs),
+        `wording-only` (paragraphs were located but no restatement could be
+        verified, so the document's own words are shown, with the reason) or
+        `not-found` (the document has no such wording; the model is not
+        consulted). Every claim cites chunk ids from `chunks`. Prepared once
+        per session: a second call returns the same map without consulting
+        the model again, unless the first was degraded by the model being
+        unavailable.
+      responses:
+        "200":
+          description: Document map and timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentMapResponse"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such session (deleted, expired, or never opened)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sessions/{sessionId}/review-prompts:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: prepareReviewPrompts
+      tags: [analysis]
+      summary: Review prompts for the session's document
+      description: >-
+        Runs the clause rules over the session's document (the newer version
+        for a comparison) and returns one review prompt per rule that fired:
+        a plain-language check or question in the "review this / confirm
+        this" register, never a verdict, with the exact wording that
+        triggered it in every paragraph the rule matched. Rules that lead or
+        support the stage are phrased by the model from those paragraphs and
+        verified against them; a rule with no verified phrasing, or one that
+        is background at this stage, carries the registry's own prompt for
+        that clause and says so (`phrasedBy`, `reason`). Rules that lead the
+        stage but matched nothing are listed under `notFound`. Every claim
+        cites chunk ids from `chunks`. Every sentence has passed the
+        Responsible Language check. Prepared once per session, like the map.
+      responses:
+        "200":
+          description: Review prompts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewPromptsResponse"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such session (deleted, expired, or never opened)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sessions/{sessionId}/compare:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: prepareComparison
+      tags: [analysis]
+      summary: Change cards for the session's two versions
+      description: >-
+        Aligns the paragraphs of the session's older and newer version in
+        document order (same wording, or the same clause number with much of
+        the wording kept) and returns one change card per difference: the
+        paragraph as it was and as it is, each verbatim and cut where the
+        words changed, with the change classified as money, time, duty,
+        remedy or wording from the words that changed. A paragraph with no
+        counterpart is `added` or `removed`. No model is involved; the same
+        two versions always produce the same cards. Prepared once per
+        session.
+      responses:
+        "200":
+          description: Change cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompareResponse"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: The session holds one document, not two versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such session (deleted, expired, or never opened)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Two versions with too many paragraphs to line up (about 2,000 a side)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        A Firebase Authentication ID token for the ClauseCompass project, as
+        `Authorization: Bearer <token>`. The web app obtains it by signing the
+        reader in; the server checks its signature and claims and binds every
+        session to the reader's uid. A session is shown, prepared and ended
+        only for the reader who opened it; anyone else gets the same 404 as
+        for an id that never existed.
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    DocumentUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The document (.pdf, .docx or .txt)
+    ExtractedChunk:
+      type: object
+      required: [text, page, paragraphIndex]
+      properties:
+        text:
+          type: string
+          description: Paragraph text with runs of whitespace collapsed to single spaces
+        page:
+          type: ["integer", "null"]
+          description: 1-based page number; null for formats without fixed pages (DOCX, TXT)
+        paragraphIndex:
+          type: integer
+          description: 1-based position of the paragraph in the whole document
+    ExtractedDocument:
+      type: object
+      required: [kind, pageCount, wordCount, chunks]
+      properties:
+        kind:
+          type: string
+          enum: [pdf, docx, txt]
+        pageCount:
+          type: ["integer", "null"]
+          description: Number of pages; null for formats without fixed pages
+        wordCount:
+          type: integer
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedChunk"
+    SessionUpload:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          $ref: "#/components/schemas/StageId"
+        documentType:
+          $ref: "#/components/schemas/DocumentTypeId"
+        file:
+          type: string
+          format: binary
+          description: The document (.pdf, .docx or .txt); required unless the stage is `compare-versions`
+        older:
+          type: string
+          format: binary
+          description: The earlier version (.pdf, .docx or .txt); `compare-versions` only, with `newer`
+        newer:
+          type: string
+          format: binary
+          description: The later version (.pdf, .docx or .txt); `compare-versions` only, with `older`
+    SlotId:
+      type: string
+      enum: [primary, older, newer]
+      description: Which place a document holds in the session; `primary` for every stage but `compare-versions`
+    SessionDocument:
+      type: object
+      required: [slot, name, document]
+      properties:
+        slot:
+          $ref: "#/components/schemas/SlotId"
+        name:
+          type: string
+          description: The uploaded file's name as sent, whitespace collapsed, control and direction-override characters removed, capped at 120 characters with the extension kept. A name that is a path is refused at upload, never trimmed.
+        document:
+          $ref: "#/components/schemas/AnalysedDocument"
+    SessionOutputs:
+      type: object
+      description: Which outputs the session already holds
+      required: [documentMap, reviewPrompts, compare]
+      properties:
+        documentMap:
+          type: boolean
+        reviewPrompts:
+          type: boolean
+        compare:
+          type: boolean
+    Session:
+      type: object
+      required: [id, stage, ttlMinutes, expiresAt, documents, outputs]
+      properties:
+        id:
+          type: string
+          description: The session's only handle; unguessable, never logged
+        stage:
+          $ref: "#/components/schemas/StageId"
+        documentType:
+          $ref: "#/components/schemas/DocumentTypeId"
+        ttlMinutes:
+          type: integer
+          description: Minutes of inactivity after which the session is deleted
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the session will be deleted if nothing touches it before then
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionDocument"
+        outputs:
+          $ref: "#/components/schemas/SessionOutputs"
+    RetentionPolicy:
+      type: object
+      required: [ttlMinutes]
+      properties:
+        ttlMinutes:
+          type: integer
+          description: Minutes of inactivity after which a session is deleted
+    StageId:
+      type: string
+      enum: [before-signing, problem-started, compare-versions]
+      description: Where the reader is in their situation; orders the evidence the rules select
+    DocumentTypeId:
+      type: string
+      enum: [offer_letter, rental, nda]
+      description: When known, rules scoped to other document types are skipped
+    SourceLocation:
+      type: object
+      required: [page, paragraph, clause]
+      properties:
+        page:
+          type: ["integer", "null"]
+          description: 1-based page number; null for formats without fixed pages
+        paragraph:
+          type: integer
+          description: 1-based paragraph index within the whole document
+        clause:
+          type: ["string", "null"]
+          description: Detected clause or section label such as "7.1", when numbering exists
+    SourceChunk:
+      type: object
+      required: [id, text, location]
+      description: A paragraph of the document, the unit every citation points at
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        location:
+          $ref: "#/components/schemas/SourceLocation"
+    GroundedClaim:
+      type: object
+      required: [text, quote, source_chunk_ids, location, confidence, category]
+      description: A statement about the document that cites the chunks it rests on; `quote` is found verbatim in a cited chunk
+      properties:
+        text:
+          type: string
+        quote:
+          type: string
+        source_chunk_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        location:
+          $ref: "#/components/schemas/SourceLocation"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        category:
+          type: string
+    MapFieldId:
+      type: string
+      enum: [parties, dates, money, duties, termination, dispute]
+    MapField:
+      type: object
+      required: [id, status, claims, evidence, withheld, reason]
+      properties:
+        id:
+          $ref: "#/components/schemas/MapFieldId"
+        status:
+          type: string
+          enum: [found, wording-only, not-found]
+          description: found = verified restatements; wording-only = located paragraphs shown in the document's own words; not-found = no such wording in this document
+        claims:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroundedClaim"
+        evidence:
+          type: array
+          description: Ids of the paragraphs selected for this field, in document order; empty when not found
+          items:
+            type: string
+        withheld:
+          type: integer
+          description: Restatements the validator withheld from the model's final attempt
+        reason:
+          type: ["string", "null"]
+          enum: [model-unavailable, nothing-verified, null]
+          description: Why a field is wording-only; null otherwise
+    DateAmbiguityKind:
+      type: string
+      enum: [day-month-order, two-digit-year]
+    DateAmbiguity:
+      type: object
+      description: Why the date's reading is not certain; "03/04/26" carries both kinds
+      required: [kinds, alternative]
+      properties:
+        kinds:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/DateAmbiguityKind"
+        alternative:
+          type: ["string", "null"]
+          description: The other reading (YYYY-MM-DD) when the day and month could be swapped; null otherwise
+    TimelineItem:
+      type: object
+      required: [date, asWritten, ambiguity, topics, claim]
+      properties:
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: The primary reading, YYYY-MM-DD, without a time zone
+        asWritten:
+          type: string
+          description: The date exactly as the document writes it
+        ambiguity:
+          oneOf:
+            - $ref: "#/components/schemas/DateAmbiguity"
+            - type: "null"
+        topics:
+          type: array
+          description: Titles of the clause rules that fired on the same paragraph
+          items:
+            type: string
+        claim:
+          $ref: "#/components/schemas/GroundedClaim"
+    DocumentMapResponse:
+      type: object
+      required: [document, chunks, map, timeline]
+      properties:
+        document:
+          type: object
+          required: [kind, pageCount, wordCount, paragraphCount]
+          properties:
+            kind:
+              type: string
+              enum: [pdf, docx, txt]
+            pageCount:
+              type: ["integer", "null"]
+            wordCount:
+              type: integer
+            paragraphCount:
+              type: integer
+        chunks:
+          type: array
+          description: Every paragraph of the document, the targets of all citations
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        map:
+          type: object
+          required: [fields]
+          properties:
+            fields:
+              type: array
+              description: One entry per MapFieldId, in a fixed order
+              items:
+                $ref: "#/components/schemas/MapField"
+        timeline:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              description: Explicit dates, earliest first; empty when the document writes no full date
+              items:
+                $ref: "#/components/schemas/TimelineItem"
+    RuleFamilyId:
+      type: string
+      enum: [money, time, duty, exit, data-ip]
+      description: The clause-rule family, for the icon and colour a prompt is coded with (never colour alone)
+    HitRelevance:
+      type: string
+      enum: [primary, secondary, background]
+      description: How much the rule matters at the reader's stage; primary rules lead the review
+    ReviewPrompt:
+      type: object
+      required: [ruleId, family, category, title, whyItMatters, relevance, prompt, phrasedBy, reason, places]
+      properties:
+        ruleId:
+          type: string
+          description: The registry rule that fired, e.g. `exit.notice`
+        family:
+          $ref: "#/components/schemas/RuleFamilyId"
+        category:
+          type: string
+          description: The rule's category key, unique per rule; the category on its claims
+        title:
+          type: string
+          description: Short reader-facing name of what the rule looks for
+        whyItMatters:
+          type: string
+          description: One plain sentence on why a reader should care
+        relevance:
+          $ref: "#/components/schemas/HitRelevance"
+        prompt:
+          allOf:
+            - $ref: "#/components/schemas/GroundedClaim"
+          description: The prompt for the reader, in the review register; its quote is the wording it rests on
+        phrasedBy:
+          type: string
+          enum: [model, template]
+          description: model = the model's phrasing, verified against the cited paragraph; template = the registry's prompt for this rule, rendered for the clause
+        reason:
+          type: ["string", "null"]
+          enum: [model-unavailable, nothing-verified, not-asked, null]
+          description: Why the template is shown (model down, nothing verified, or the rule is background at this stage and was not sent); null when the model phrased it
+        places:
+          type: array
+          description: The triggering wording, one claim per paragraph the rule fired on, in document order
+          items:
+            $ref: "#/components/schemas/GroundedClaim"
+    ReviewPromptAbsence:
+      type: object
+      required: [ruleId, family, category, title]
+      properties:
+        ruleId:
+          type: string
+        family:
+          $ref: "#/components/schemas/RuleFamilyId"
+        category:
+          type: string
+        title:
+          type: string
+    ReviewPromptsResponse:
+      type: object
+      required: [document, chunks, registryVersion, stage, prompts, notFound, withheld]
+      properties:
+        document:
+          type: object
+          required: [kind, pageCount, wordCount, paragraphCount]
+          properties:
+            kind:
+              type: string
+              enum: [pdf, docx, txt]
+            pageCount:
+              type: ["integer", "null"]
+            wordCount:
+              type: integer
+            paragraphCount:
+              type: integer
+        chunks:
+          type: array
+          description: Every paragraph of the document, the targets of all citations
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        registryVersion:
+          type: string
+          description: Version of the clause-rule registry the prompts were produced with
+        stage:
+          $ref: "#/components/schemas/StageId"
+        prompts:
+          type: array
+          description: One per rule that fired; primary rules first, then secondary, then background, families in the stage's order within each
+          items:
+            $ref: "#/components/schemas/ReviewPrompt"
+        notFound:
+          type: array
+          description: Rules that lead this stage but matched nothing in the document
+          items:
+            $ref: "#/components/schemas/ReviewPromptAbsence"
+        withheld:
+          type: integer
+          minimum: 0
+          description: Model phrasings not shown across all calls - withheld by the validator, or not tied to the rule they were written for
+    AnalysedDocument:
+      type: object
+      required: [kind, pageCount, wordCount, paragraphCount]
+      properties:
+        kind:
+          type: string
+          enum: [pdf, docx, txt]
+        pageCount:
+          type: ["integer", "null"]
+        wordCount:
+          type: integer
+        paragraphCount:
+          type: integer
+    ComparedVersion:
+      type: object
+      required: [document, chunks]
+      properties:
+        document:
+          $ref: "#/components/schemas/AnalysedDocument"
+        chunks:
+          type: array
+          description: Every paragraph of this version, the targets of the change cards' chunk ids
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+    ChangeKind:
+      type: string
+      enum: [money, time, duty, remedy, wording]
+      description: What the changed words touch; `wording` when none of the other four is detected in them
+    ChangeStatus:
+      type: string
+      enum: [changed, added, removed]
+      description: changed = paired paragraphs with different wording; added = only in the newer version; removed = only in the older
+    DiffSegment:
+      type: object
+      required: [text, changed]
+      properties:
+        text:
+          type: string
+        changed:
+          type: boolean
+          description: True for a run of words that differs from the other version
+    ChangeSide:
+      type: object
+      required: [chunkId, location, segments]
+      description: One version's paragraph, whole and verbatim, cut where the wording changed; the segments concatenate to the chunk's text
+      properties:
+        chunkId:
+          type: string
+        location:
+          $ref: "#/components/schemas/SourceLocation"
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiffSegment"
+    Change:
+      type: object
+      required: [id, status, kind, signals, older, newer, values]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ChangeStatus"
+        kind:
+          $ref: "#/components/schemas/ChangeKind"
+        signals:
+          type: array
+          description: Every kind detected in the changed words, strongest first; `kind` is the first, or `wording` when the list is empty
+          items:
+            $ref: "#/components/schemas/ChangeKind"
+        older:
+          oneOf:
+            - $ref: "#/components/schemas/ChangeSide"
+            - type: "null"
+          description: Null for an added paragraph
+        newer:
+          oneOf:
+            - $ref: "#/components/schemas/ChangeSide"
+            - type: "null"
+          description: Null for a removed paragraph
+        values:
+          type: object
+          required: [older, newer]
+          description: The leading kind's words found in each side's changed wording (amounts, periods, dates, remedy or duty words), verbatim and in order
+          properties:
+            older:
+              type: array
+              items:
+                type: string
+            newer:
+              type: array
+              items:
+                type: string
+    CompareResponse:
+      type: object
+      required: [older, newer, changes, unchanged, aligned, byKind]
+      properties:
+        older:
+          $ref: "#/components/schemas/ComparedVersion"
+        newer:
+          $ref: "#/components/schemas/ComparedVersion"
+        changes:
+          type: array
+          description: In document order - by position in the newer version, a removed paragraph where it used to sit
+          items:
+            $ref: "#/components/schemas/Change"
+        unchanged:
+          type: integer
+          minimum: 0
+          description: Paired paragraphs with the same wording (case, quote and dash variants aside)
+        aligned:
+          type: integer
+          minimum: 0
+          description: Paired paragraphs, changed or not
+        byKind:
+          type: object
+          required: [money, time, duty, remedy, wording]
+          properties:
+            money:
+              type: integer
+            time:
+              type: integer
+            duty:
+              type: integer
+            remedy:
+              type: integer
+            wording:
+              type: integer
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable reason, e.g. `encrypted`, `malformed`, `too-large`
+        message:
+          type: string
+          description: Plain-language explanation safe to show to the person who uploaded the file
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"

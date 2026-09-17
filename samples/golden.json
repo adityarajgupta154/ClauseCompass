@@ -1,0 +1,57 @@
+{
+  "$comment": "Human-checked extraction expectations for the synthetic fixtures (PRD §12: golden documents with expected source locations). A paragraph is a blank-line-separated block; paragraphIndex is 1-based over the whole document. The extraction tests assert these against every format the fixture is converted to (TXT as-is; PDF and DOCX generated at test time).",
+  "offer-letter": {
+    "paragraphCount": 56,
+    "wordCount": 1397,
+    "anchors": [
+      { "paragraphIndex": 1, "startsWith": "[Synthetic test document." },
+      { "paragraphIndex": 19, "startsWith": "4.2 During probation, either party may terminate" },
+      { "paragraphIndex": 24, "startsWith": "6.1 The Company will invest" },
+      { "paragraphIndex": 25, "startsWith": "6.2 In consideration of this investment" },
+      { "paragraphIndex": 27, "startsWith": "7.1 After confirmation, either party may terminate" },
+      { "paragraphIndex": 34, "startsWith": "9.1 For a period of twelve (12) months" },
+      { "paragraphIndex": 44, "startsWith": "13.1 This offer is valid until" },
+      { "paragraphIndex": 52, "startsWith": "ANNEXURE A - COMPENSATION STRUCTURE" },
+      { "paragraphIndex": 56, "startsWith": "1. Signed copy of this offer letter." }
+    ]
+  },
+  "rental-agreement": {
+    "paragraphCount": 53,
+    "wordCount": 1574,
+    "anchors": [
+      { "paragraphIndex": 2, "startsWith": "LEAVE AND LICENCE AGREEMENT" },
+      { "paragraphIndex": 12, "startsWith": "1.1 The Licensor hereby grants" },
+      { "paragraphIndex": 16, "startsWith": "2.2 If the licence fee is not received" },
+      { "paragraphIndex": 19, "startsWith": "3.1 The Licensee has, on or before" },
+      { "paragraphIndex": 23, "startsWith": "4.1 The first six (6) months" },
+      { "paragraphIndex": 40, "startsWith": "9.1 On expiry or earlier termination" },
+      { "paragraphIndex": 52, "startsWith": "SCHEDULE I - FITTINGS AND FIXTURES" }
+    ]
+  },
+  "nda": {
+    "paragraphCount": 53,
+    "wordCount": 1495,
+    "anchors": [
+      { "paragraphIndex": 2, "startsWith": "CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT" },
+      { "paragraphIndex": 14, "startsWith": "1.1 \"Confidential Information\" means" },
+      { "paragraphIndex": 27, "startsWith": "4.1 This Agreement commences" },
+      { "paragraphIndex": 32, "startsWith": "6.1 During the term of this Agreement" },
+      { "paragraphIndex": 37, "startsWith": "8.2 In the event of any unauthorised disclosure" },
+      { "paragraphIndex": 41, "startsWith": "9.2 Any dispute arising out of" },
+      { "paragraphIndex": 53, "startsWith": "______________________ Name: Kabir Anand" }
+    ]
+  },
+  "rental-agreement-v2": {
+    "paragraphCount": 53,
+    "wordCount": 1577,
+    "anchors": [
+      { "paragraphIndex": 2, "startsWith": "LEAVE AND LICENCE AGREEMENT" },
+      { "paragraphIndex": 16, "startsWith": "2.2 If the licence fee is not received" },
+      { "paragraphIndex": 22, "startsWith": "4.1 The first six (6) months" },
+      { "paragraphIndex": 23, "startsWith": "4.2 After the lock-in period, either party may terminate this Agreement by giving the other party two (2) months'" },
+      { "paragraphIndex": 31, "startsWith": "5.6 The Licensee shall not park" },
+      { "paragraphIndex": 40, "startsWith": "9.1 On expiry or earlier termination" },
+      { "paragraphIndex": 52, "startsWith": "SCHEDULE I - FITTINGS AND FIXTURES" }
+    ]
+  }
+}

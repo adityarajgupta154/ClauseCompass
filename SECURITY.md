@@ -1,0 +1,33 @@
+# Security
+
+ClauseCompass reads people's real contracts. This page says how to report a problem, what the code guarantees, and what it knowingly does not. The reasoning behind each guarantee is in [`docs/threat-model.md`](docs/threat-model.md); the controls are listed with their tests in the README's *Security controls* section.
+
+## Reporting a vulnerability
+
+- Use the repository's private vulnerability reporting (GitHub → *Security* → *Report a vulnerability*). If that is not available, open an issue titled "security contact requested" with no details, and a private channel will be arranged.
+- Please do not include a real document, a token or a screenshot of someone's contract in a report. A synthetic file that reproduces the problem is ideal; the ones in [`samples/`](samples/) are a starting point.
+- What helps: the route or screen, the steps, what you expected and what happened, the commit you tested. We aim to acknowledge within three days and to say what we found and what changes, or why nothing does, within two weeks.
+- In scope: anything that lets one reader see another's document or session, gets document text or a key into a log, an error or the browser bundle, makes the model give advice or leak its instructions through a document, or takes the service down from one client. Out of scope: findings against the Firebase console configuration of a deployment you do not run, rate limits being reachable (they are meant to be), and the accepted risks below.
+
+## What the code guarantees
+
+- **A document belongs to the reader who uploaded it.** Every document and session route needs a Firebase ID token verified on the server (RS256 against Google's published keys, issuer and audience pinned to the project, expiry enforced). A session is returned, prepared or deleted only for the uid that opened it; anyone else gets `404`, the same as for an id that never existed.
+- **Nothing is kept.** Uploaded bytes exist only while a request is parsed and are never written to disk. Extracted text and prepared outputs live in one process's memory until the reader deletes them or 30 idle minutes pass: an expired session is refused on the next request and freed by a sweep that runs every minute, so nothing outlives the last use by more than 31 minutes. Delete also aborts any model call still running for that session. There is no database, no analytics, no third-party script in the page.
+- **Hostile files are refused before they are read.** Kind is decided from the bytes, not the name; files over 10 MiB are stopped while streaming; names with path separators or control characters are refused; DOCX archives are measured under an entry and size budget before inflation; every parse runs in a fresh worker thread with a 30-second timeout and a 256 MB heap, watched for memory pressure.
+- **The model can only restate.** Excerpts reach it as data inside a delimited array; it can reply only with a tool call matching a strict schema; a statement is discarded when its cited paragraph does not exist, its quote is not found verbatim there, it echoes the prompt, or it uses judging language; a discarded statement is counted as withheld, never repaired into an answer. The model sees only the paragraphs selected for one field.
+- **What the reader types about their situation never leaves the browser.** The interview answer is scanned for safety cues in the tab, is not sent, stored or shown back, and an escalation deletes the session on the server.
+- **Errors and logs carry no document.** API errors are `{ error: { code, message } }` with no stack or path; request logs carry a request id, method, a redacted path and a status.
+- **One client cannot take the process down.** Every `/api` request is charged to its client address before anything is read (600 a minute; uploads and analyses also against 60 a minute; `429` with `Retry-After`); uploads and analyses are admitted through bounded gates (`503 busy` past them); at most 8 model calls are in flight at once; each model call times out at 30 seconds; the session store holds at most 100 sessions.
+- **The secret stays on the server.** The Anthropic key is read on the server only. `pnpm check:client-secrets` fails the build if a server secret name or an Anthropic key prefix appears in the client source or production bundle. The stand-in model and sign-in providers used by the offline tests refuse to start in production or inside a published Replit app.
+- **Responses carry the standard hardening headers** (`helmet`: no content sniffing, no framing, `no-referrer`, HSTS, a default CSP, same-origin resource policy). No cross-origin access is granted unless `CORS_ORIGINS` names the origins; the web app shares the API's origin, so by default none is.
+
+## Accepted risks
+
+- The Firebase **web** config (API key, auth domain, project id, app id) is a public identifier that ships in every visitor's bundle and is committed in `.replit` for the Replit workflows. It is not a credential: what it allows is decided by the Firebase project's authorized-domains list and enabled sign-in providers. A deployment should additionally restrict that key in Google Cloud console to its serving domains (HTTP referrers).
+- Budgets, gates and sessions live in one process's memory. That is the deployment shape (one instance); several instances would each keep their own budgets and split readers' sessions. A shared store is the change that would lift both limits.
+- Budgets are keyed by a client address. By default that is the socket peer and forwarding headers are ignored, so a forged `X-Forwarded-For` buys nothing, but every reader behind one proxy shares that proxy's budget. `TRUST_PROXY` moves the key to the forwarded address (a hop count, a list of proxy addresses, or `true` behind an edge that rewrites the header, which is how the Replit deployment is configured); set it wrongly for the proxy in front of the server and a client can choose its own bucket per request. Readers behind one shared address share one budget either way.
+- The validator proves each quote sits in the cited paragraph, not that the restatement follows from it. The excerpt is one press away on every statement so the reader can check.
+
+## Checks run before a submission
+
+Dependency audit (`pnpm audit`), static analysis of the sources and a secret scan were last run on 17 September 2026: no known vulnerabilities in the resolved dependencies, no secrets in the tree or the history, one advisory about the committed Firebase web API key (the accepted risk above). The full check list is in the README under *Preflight before a submission attempt*; the adversarial and hardening suites run with `pnpm test`.

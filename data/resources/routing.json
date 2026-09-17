@@ -1,0 +1,17 @@
+{
+  "concerns": {
+    "legal-advice": ["tele-law", "nalsa-legal-aid"],
+    "rent": ["tele-law", "nalsa-legal-aid"],
+    "work": ["tele-law", "nalsa-legal-aid", "shebox"],
+    "consumer": ["consumer-helpline", "tele-law", "nalsa-legal-aid"],
+    "cyber": ["cybercrime-1930", "erss-112"],
+    "safety": ["erss-112", "women-helpline-181", "child-helpline-1098", "tele-manas", "nalsa-legal-aid"]
+  },
+  "guidance": {
+    "emergency-services": "erss-112",
+    "police": "erss-112",
+    "women-helpline": "women-helpline-181",
+    "child-helpline": "child-helpline-1098",
+    "mental-health-helpline": "tele-manas"
+  }
+}

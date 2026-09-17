@@ -1,0 +1,41 @@
+{
+  "$comment": "Synthetic interview answers for the safety-escalation branch (PRD §7, §8). Written for the demo and the tests so that nobody has to type a real crisis into the box: none of these is a real person's words, and every detail is fictional. The web client's 'Try a sample answer' picker fills the interview box with `text`; tests/safety/escalation-fixtures.test.ts pins `expect` against the decision flow, so change a text and its expectation together. Keep ids stable.",
+  "answers": [
+    {
+      "id": "coercion-passport",
+      "title": "Forced to sign, passport held",
+      "text": "HR kept my original passport when I joined and says I will get it back only after the bond period. Yesterday they made me sign a new bond and I was not allowed to leave the office until I signed.",
+      "expect": { "status": "safety-escalation", "category": "coercion", "guidance": ["emergency-services", "police"] }
+    },
+    {
+      "id": "threat-of-violence",
+      "title": "A threat of violence",
+      "text": "The owner's brother came to the flat last night with two men and said they will beat me if I am not out by Sunday. I have the agreement here.",
+      "expect": { "status": "safety-escalation", "category": "danger", "guidance": ["emergency-services", "police"] }
+    },
+    {
+      "id": "violence-at-home",
+      "title": "Violence at home",
+      "text": "My husband hits me when I ask about the flat papers. The agreement is in his name and I want to know what it says about me.",
+      "expect": { "status": "safety-escalation", "category": "danger", "guidance": ["emergency-services", "women-helpline", "police"] }
+    },
+    {
+      "id": "child-at-risk",
+      "title": "A child at risk",
+      "text": "The agent says the deposit is gone, but that is not the main thing: the owner's son follows my daughter and she is not safe in that building.",
+      "expect": { "status": "safety-escalation", "category": "child-safety", "guidance": ["child-helpline", "emergency-services"] }
+    },
+    {
+      "id": "not-wanting-to-live",
+      "title": "Not wanting to live",
+      "text": "The recovery calls do not stop and I don't want to live anymore. I uploaded the notice but I cannot think straight.",
+      "expect": { "status": "safety-escalation", "category": "self-harm", "guidance": ["mental-health-helpline", "emergency-services"] }
+    },
+    {
+      "id": "dispute-no-danger",
+      "title": "A dispute, nobody in danger",
+      "text": "The landlord is threatening to go to court over the deposit and says he will keep the whole amount because I left before the lock-in ended.",
+      "expect": { "status": "review" }
+    }
+  ]
+}
