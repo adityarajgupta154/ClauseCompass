@@ -24,6 +24,7 @@
   <a href="#chosen-vertical">Why</a> ·
   <a href="#what-it-looks-like">Screens</a> ·
   <a href="#how-it-works">How it works</a> ·
+  <a href="#the-ai-assistant-ask-about-this-document">AI assistant</a> ·
   <a href="#setup">Run it</a> ·
   <a href="#demo-walkthrough-priya">Walkthrough</a> ·
   <a href="#api">API</a> ·
@@ -41,7 +42,7 @@ Built for the Hack2Skill 2026 hackathon. The requirements this build follows are
 
 | Judging or reading | Running it | Building on it |
 | --- | --- | --- |
-| [Chosen vertical](#chosen-vertical) → [Problem & approach](#problem--approach) → [What it looks like](#what-it-looks-like) → [Demo walkthrough](#demo-walkthrough-priya) → [Evaluation evidence](#evaluation-evidence) → [Assumptions & limitations](#assumptions--limitations) | [Setup](#setup): [quick start](#quick-start), [running it without any keys](#running-it-without-any-keys), [environment variables](#environment-variables), [preflight](#preflight-before-a-submission-attempt) | [System architecture](#system-architecture) → [How it works](#how-it-works) → [Decision flow](#decision-flow) → [Grounding](#grounding-how-a-statement-earns-its-place-on-screen) → [API](#api) → [Repository layout](#repository-layout) → [Documentation](#documentation) |
+| [Chosen vertical](#chosen-vertical) → [Problem & approach](#problem--approach) → [What it looks like](#what-it-looks-like) → [The AI assistant](#the-ai-assistant-ask-about-this-document) → [Demo walkthrough](#demo-walkthrough-priya) → [Evaluation evidence](#evaluation-evidence) → [Assumptions & limitations](#assumptions--limitations) | [Setup](#setup): [quick start](#quick-start), [running it without any keys](#running-it-without-any-keys), [environment variables](#environment-variables), [preflight](#preflight-before-a-submission-attempt) | [System architecture](#system-architecture) → [How it works](#how-it-works) → [Decision flow](#decision-flow) → [Grounding](#grounding-how-a-statement-earns-its-place-on-screen) → [API](#api) → [Repository layout](#repository-layout) → [Documentation](#documentation) |
 
 ## At a glance
 
@@ -51,7 +52,8 @@ Built for the Hack2Skill 2026 hackathon. The requirements this build follows are
 | **Documents** | TXT, PDF and DOCX up to 10 MB; PDFs up to 50 pages; 30,000 words. No OCR: scans are refused with a message saying so. |
 | **Clause rules** | 34, in five families (money, time, duty, exit & remedies, data & IP); each says at which stages it leads. They pick the paragraphs, not the model. |
 | **The map** | Six fields: Who is bound by it · How long it lasts · Money · Duties and restrictions · How it can end · If there is a dispute, plus the dates timeline; every statement opens to the paragraph it rests on. |
-| **What the model sees** | Only the paragraphs selected for one map field or one rule family, under a per-call cap; never the reader's identity or the interview answer. |
+| **The AI assistant** | **Ask about this document**: a question in English or Hinglish, answered from the paragraphs that share its words (at most five, chosen by BM25 with a lay and Hinglish synonym table), one to three statements each quoting the document, or **"The document does not answer this"** with the question handed back for a lawyer or a legal-aid service. It is grounded, not open-ended: no paragraph, no model call; no verified quote, no statement. See [The AI assistant](#the-ai-assistant-ask-about-this-document). |
+| **What the model sees** | Only the paragraphs selected for one map field, one rule family or one question, under a per-call cap; never the reader's identity or the interview answer. |
 | **What the model may not do** | Judge, predict or advise. A validator checks every sentence against its cited paragraph before it is shown; a sentence that fails twice is withheld and counted. |
 | **What the server keeps** | Extracted text and prepared outputs, for a sliding 30 minutes or until "Delete my document now"; never the uploaded bytes. In the API process's memory by default; on a host that runs an instance per request, in a Redis database it owns, every document and output encrypted before it is written (see [Sessions](#request-handling-limits-and-session-lifecycle)). |
 | **Handoff** | A printable preparation packet and a page of official services: Tele-Law, NALSA legal aid, the 1915, 1930, 112, 181 and 1098 helplines, SHe-Box. |
@@ -389,6 +391,56 @@ Three consequences of this design are visible in the product:
 
 <p align="right"><a href="#top">Back to top ↑</a></p>
 
+## The AI assistant: Ask about this document
+
+ClauseCompass has an AI assistant, and it is deliberately a narrow one. On the map, review and comparison screens the outline link **"Ask about this document"** opens `/ask`, where the reader types a question in their own words, in English or Hinglish, and gets one of two things: statements of what the document says on that point, each resting on a quote from it, or the sentence **"The document does not answer this"** with the question handed back, as typed, to take to a lawyer or a legal-aid service. It does not chat, it does not answer from general knowledge, and it does not say what to do. That is the product's boundary (PRD FR-08 and section 8, "question unsupported by the document"), and every part of the assistant below exists to hold it.
+
+![The Ask screen: the question "What is the notice period during probation?" answered under "What the document states" with one statement, its source open to clause 4.2, paragraph 19](docs/screenshots/ask.webp)
+
+### What happens to one question
+
+| Step | Where | What is done |
+| --- | --- | --- |
+| 1. Safety check | Browser | The words go through the same decision flow as the interview answer. A mention of harm to a person opens the safety screen instead; nothing is sent. |
+| 2. Retrieval | API, `selectPassages` | BM25 over the session's paragraph chunks (`lib/grounding`), with a query-side synonym table (135 entries) so *rent* also finds *licence fee* and *chhutti* finds *leave*. Headings are excluded; a synonym counts for less than the typed word unless the typed word occurs nowhere in the document, when the synonym is the only way to honour it. At most **5 passages** and **10,000 characters**, kept in document order. |
+| 3. First decision | API, `decideAnswer` | No passage shares a word with the question → `not-in-document`, reason `no-evidence`, **no model call**. |
+| 4. The model | API, `generateClaims` | One forced tool call to Claude (`claude-haiku-4-5` by default) with a strict JSON schema: a fixed task line ("Answer the reader's question from the excerpts and from nothing else… do not fill the gap from general knowledge and do not guess… do not say what the reader ought to do"), the question as quoted data, the passages as data, one category `answer`, at most **3 statements** (or **1** under a close deadline). |
+| 5. Validation | API, the same validator as the map | Each statement must cite a passage that was sent, quote it word for word, not echo the prompt, and be in a plain, non-judging register. A reply that fails gets **one retry** with the validator's feedback; a reply that fails twice is nothing verified. |
+| 6. Second decision | API, `decideAnswer` again | Nothing verified → `nothing-verified`; best statement under the confidence floor (0.6) → `low-confidence`; statements under the floor beside a confident one are dropped and counted as withheld. Otherwise `answered`. |
+| 7. On screen | Browser | Under **"What the document states"**, each statement opens to its paragraph and verbatim excerpt like a map statement, with **"Read the answer aloud"**. A refusal names its reason in a sentence, shows the question again and links to **"Official help you can contact"**. |
+
+A provider failure (timeout, overload, an error from the API) is `503 model-unavailable` with `Retry-After`, shown as **"The question could not be answered"** with an **"Ask again"** control; the assistant never substitutes a template or a guess for an answer.
+
+### What "training" means here
+
+No model was fine-tuned, and no document is ever used to train anything (the upload notice says so before the first upload). The assistant is trained *on the project* in four ways that are all in the repository and all tested:
+
+- **A prompt that knows the product's rule.** The task line above is fixed text; the reader's question can only ever arrive as quoted JSON data inside it, never as an instruction.
+- **Retrieval tuned to how people ask.** The synonym table maps lay and Hinglish words (*rent*, *chhutti*, *paisa*, *court*, *competitor* …) onto the words documents use; [`tests/golden/retrieval.test.ts`](tests/golden/retrieval.test.ts) pins that the clause that answers each golden question ranks in the top three paragraphs.
+- **Golden questions as the contract.** [`tests/golden/questions.ts`](tests/golden/questions.ts) holds 27 questions a tenant, a candidate and a receiving party would ask about the three synthetic documents, each paired with the clause that answers it, plus nine the documents do not settle. [`tests/golden/ask.test.ts`](tests/golden/ask.test.ts) runs the whole pipeline over them against the offline stand-in.
+- **A live evaluation.** `pnpm eval:ask` ([`tests/eval/ask.eval.ts`](tests/eval/ask.eval.ts)) asks the configured model every golden question, prints each answer, and fails below 80% answered from the right clause or 70% of the unsettled ones refused. Last run, 18 September 2026: **25 of 27** answered from the right clause, **8 of 9** unsettled questions refused; both misses were refusals, not wrong answers (details under [Question answering](#question-answering)).
+
+### What the assistant will not do, and why
+
+| Asked for | What happens | Reason |
+| --- | --- | --- |
+| Advice ("should I sign?") | Statements of what the document says on the point, or a refusal; the language check withholds sentences in a judging or advising register | The product boundary; the validator enforces it sentence by sentence |
+| Something the document does not cover | **"The document does not answer this"**, question handed back | Retrieval found no paragraph, or the model returned an empty list as instructed |
+| A paraphrase sharing no word with the document | The `no-evidence` refusal | Retrieval is lexical; the synonym table narrows this gap but does not close it |
+| A question over 500 characters | Refused in the browser and by the API (`400 bad-question`) | The cap is measured on the typed words, not on the question mark the tidying adds |
+| A second question while one is in flight | The **"Ask"** button waits | One question at a time per screen; the API itself runs questions side by side |
+| An answer in Hinglish | The screen's own text switches; statements stay in English | Statements quote the document, and the packet is prepared in English for the professional who receives it |
+
+Two further limits are the same as the rest of the product. The validator's check is mechanical: the quote is in the cited passage, the register is plain, the confidence is above the floor. Whether a statement says more than its quote is not something the validator can judge, which is why the quote is one click away beside every statement and why the eval prints every answer for a person to read. And a question about the older version of a comparison is not offered: the assistant reads the newer version, the one in force.
+
+### What is kept
+
+Nothing. The question is not written to the session, not logged beyond its length, and not part of the packet; the answer is component state in the browser, so a refresh empties the thread. The API runs each question under the session's in-flight signal: **"Delete my document now"** aborts a model call in progress and the request ends as `404`, the same as any other request for a session that has gone. The screen says so in its own words: *"Each question is answered on its own from the document. The questions and answers stay in this browser while this screen is open, and nowhere else."*
+
+Code: [`artifacts/api-server/src/analysis/ask.ts`](artifacts/api-server/src/analysis/ask.ts) (retrieval, the two decisions, the call), the route in [`artifacts/api-server/src/routes/sessions.ts`](artifacts/api-server/src/routes/sessions.ts), the decision rule in [`lib/rules/src/answer.ts`](lib/rules/src/answer.ts), the screen in [`artifacts/clausecompass/src/pages/ask.tsx`](artifacts/clausecompass/src/pages/ask.tsx) with its hook in [`artifacts/clausecompass/src/features/ask/use-ask.ts`](artifacts/clausecompass/src/features/ask/use-ask.ts).
+
+<p align="right"><a href="#top">Back to top ↑</a></p>
+
 ## Request handling, limits and session lifecycle
 
 Every request passes the same chain. The budgets, the session TTL and the model-call cap are environment-tunable (see [Setup](#setup)); the admission gates, the body limit and the file caps are constants in the code.
@@ -719,7 +771,7 @@ The interface copy is available in English and Hinglish, from the settings menu 
 <details>
 <summary><b>Can I ask it a question about my document?</b></summary>
 
-No. Retrieval is rule-driven, not free-text search: the clause rules and the date and party detectors decide which paragraphs are shown. A BM25 retriever exists in `lib/grounding` but nothing uses it yet.
+Yes. **"Ask about this document"** on the map, review and comparison screens opens the AI assistant: type a question in English or Hinglish and it answers with statements of what the document says, each quoting the paragraph it rests on, or says that the document does not answer it and hands the question back for a lawyer or a legal-aid service. It reads only the paragraphs that share the question's words, it does not answer from general knowledge, and it does not advise. Nothing you type is kept. How it works, what it refuses and how it was evaluated: [The AI assistant](#the-ai-assistant-ask-about-this-document).
 
 </details>
 
