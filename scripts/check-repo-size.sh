@@ -1,18 +1,22 @@
 #!/usr/bin/env sh
 # Fails when the files git would ship (tracked + untracked-but-not-ignored)
 # exceed the repo size ceiling. Hack2Skill caps repos at 10 MB; we hold the
-# line at 3 MiB so lockfile growth, docs, and fixtures never get close. It
+# line at 5 MiB so lockfile growth, docs, and fixtures never get close. It
 # started at 2 MiB; source, tests and docs alone passed that on 15 Sep 2026
-# (largest single file: the lockfile), so the ceiling moved once, to keep a
-# 3x margin. A jump of more than ~100 KB in one change still means something
-# that should not ship (a document, build output, a browser) is in the tree.
+# (largest single file: the lockfile), so the ceiling moved to 3 MiB. The
+# README's screenshots and journey animation (17 Sep) took the tree to 5.2
+# MiB; on 18 Sep the screenshots were re-encoded at 1000 px / quality 72
+# (1.06 MB to 0.61 MB) and the ceiling moved to 5 MiB, half the cap, with the
+# tree at 4.74 MiB. A jump of more than ~100 KB in one change still means
+# something that should not ship (a document, build output, a browser) is in
+# the tree.
 #
 # Usage: pnpm check:size   (or: sh scripts/check-repo-size.sh)
 # POSIX sh only (GNU and BSD userlands); exits 1 when over the limit and 2 when
 # it cannot measure anything, so a broken checkout never passes silently.
 set -eu
 
-LIMIT_BYTES=$((3 * 1024 * 1024))
+LIMIT_BYTES=$((5 * 1024 * 1024))
 
 cd "$(git rev-parse --show-toplevel)"
 

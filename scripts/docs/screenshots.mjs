@@ -116,7 +116,10 @@ async function shoot(page, name, { height, focus } = {}) {
     if (wantsFrame) await page.screenshot({ path: frame });
   }
   await page.evaluate(() => window.scrollTo(0, 0));
-  const converted = spawnSync("magick", [source, "-quality", "82", "-define", "webp:method=6", join(OUT_DIR, `${name}.webp`)], { stdio: "inherit" });
+  // The README shows these at 900 px or narrower, and every byte here counts against the repo payload
+  // ceiling (scripts/check-repo-size.sh), so the capture is shrunk to 1000 px wide (never enlarged) at
+  // quality 72: text stays crisp and the set weighs a little over half of what 1280 px at quality 82 did.
+  const converted = spawnSync("magick", [source, "-resize", "1000x>", "-quality", "72", "-define", "webp:method=6", join(OUT_DIR, `${name}.webp`)], { stdio: "inherit" });
   if (converted.status !== 0) throw new Error(`WebP conversion failed for ${name}`);
   taken.push(name);
   console.log(`  ${name}`);
