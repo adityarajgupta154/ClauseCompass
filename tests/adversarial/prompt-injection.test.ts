@@ -8,6 +8,7 @@ import { generateClaims } from "../../artifacts/api-server/src/llm/claims";
 import { createMockProvider, demoOutput } from "../../artifacts/api-server/src/llm/mock";
 import { OUTPUT_TOOL, SYSTEM_PROMPT, buildUserMessage } from "../../artifacts/api-server/src/llm/prompt";
 import type { LlmProvider, LlmRequest } from "../../artifacts/api-server/src/llm/provider";
+import type * as LlmModule from "../../artifacts/api-server/src/llm";
 import { loadFixtures } from "../../artifacts/api-server/src/testing/fixtures";
 import { adversarialFixture, FORGED_CHUNK_ID, INJECTION_MARKERS, INJECTION_SENTENCE } from "../support/adversarial";
 import { bootApi, openSession, prepare, readerHeaders, type Stage, type TestApi } from "../support/api-server";
@@ -36,7 +37,7 @@ import { PROMPT_ARTIFACTS, promptArtifactsIn } from "../support/prompt-artifacts
 const recorded = vi.hoisted(() => ({ requests: [] as LlmRequest[], obey: null as ((request: LlmRequest) => unknown) | null }));
 
 vi.mock("../../artifacts/api-server/src/llm", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../artifacts/api-server/src/llm")>();
+  const actual = await importOriginal<typeof LlmModule>();
   const inner = actual.createLlmProvider({ provider: "mock", model: "mock", apiKey: undefined, baseUrl: undefined } as never);
   const provider: LlmProvider = {
     name: "mock",

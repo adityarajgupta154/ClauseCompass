@@ -5,13 +5,14 @@ import { AuthProvider } from '@/features/auth/auth-context';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { PrincipalBoundary } from '@/features/auth/principal-boundary';
 import { useDisplay } from '@/features/display/use-display';
-import { JourneyProvider } from '@/features/journey/journey-context';
+import { JourneyProvider, useJourney } from '@/features/journey/journey-context';
 import { RequireDocuments } from '@/features/journey/require-documents';
 import { RequireEscalation } from '@/features/journey/require-escalation';
 import { RequireNotEscalated } from '@/features/journey/require-not-escalated';
 import { RequireStage } from '@/features/journey/require-stage';
 import { focusScreen, RouteFocus, ScreenLoading } from '@/features/journey/route-focus';
-import { preloadScreens, screens, type Screen } from '@/features/journey/screens';
+import { screens, type Screen } from '@/features/journey/screens';
+import type { StageId } from '@/features/journey/stages';
 import { DocumentHead } from '@/features/seo/document-head';
 import NotFound from '@/pages/not-found';
 import SafetyPage from '@/pages/safety';
@@ -58,6 +59,7 @@ export function JourneyRoutes() {
   // A language change re-renders every screen in place (no remount: focus and
   // form state survive); each render reads the current copy table.
   useDisplay();
+  usePreloadScreens();
   return (
     <>
       {/* Keep a shared shell (sidebar, navbar) outside the boundary so it
@@ -194,29 +196,101 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   );
 }
 
+/** The lazy screen a path shows, or null for the eager ones (welcome, safety, not-found). */
+const screenAt: Partial<Record<string, Screen>> = {
+  '/sign-in': screens.signIn,
+  '/upload': screens.upload,
+  '/interview': screens.interview,
+  '/map': screens.map,
+  '/review': screens.review,
+  '/compare': screens.compare,
+  '/packet': screens.packet,
+  '/ask': screens.ask,
+  '/help': screens.help,
+};
+
 /**
- * A little after the first screen has loaded, the code for the others is
- * fetched in the background, so that a reader who chooses a stage finds the
- * next screen on hand. Not sooner: the first paint and the reader's first
- * interaction come before anything the reader has not asked for.
+ * The screens a reader can reach from a path with the links and buttons that
+ * page renders: the same forks the pages make (interview.tsx and
+ * review-prompts.tsx send a compare-versions reader to Compare, everyone else
+ * on to Map or Packet; Map, Review and Compare also offer Ask).
+ */
+function nextScreens(location: string, stage: StageId | null): readonly Screen[] {
+  const comparing = stage === 'compare-versions';
+  switch (location) {
+    case '/':
+      return [screens.upload, screens.signIn];
+    case '/sign-in':
+      return [screens.upload];
+    case '/upload':
+      return [screens.interview];
+    case '/interview':
+      return [comparing ? screens.compare : screens.map];
+    case '/map':
+      return [screens.review, screens.ask];
+    case '/review':
+      return [comparing ? screens.compare : screens.packet, screens.ask];
+    case '/compare':
+      return [screens.packet, screens.ask];
+    case '/packet':
+      return [screens.ask];
+    default:
+      return [];
+  }
+}
+
+/**
+ * After a screen has loaded, the code for the screens it links to is fetched
+ * in the background. Not sooner: the first paint and the reader's first
+ * interaction come before anything the reader has not asked for, and a
+ * screen still arriving on a cold deep link is not made to share the line.
  */
 function usePreloadScreens() {
+  const [location] = useLocation();
+  const { stage } = useJourney();
   useEffect(() => {
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean } }
+    ).connection;
+    if (connection?.saveData === true) return;
+
+    const next = nextScreens(location, stage);
+    if (next.length === 0) return;
+
+    // Once the page has loaded and the browser is idle, fetch only those screens.
+    let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let idle: number | null = null;
     const schedule = () => {
-      timer = setTimeout(() => void preloadScreens().catch(() => undefined), 2500);
+      if (cancelled) return;
+      const preload = () => {
+        if (cancelled) return;
+        void Promise.all(next.map((screen) => screen.prefetch()));
+      };
+      if ('requestIdleCallback' in window) {
+        idle = window.requestIdleCallback(preload, { timeout: 2500 });
+      } else {
+        timer = setTimeout(preload, 2500);
+      }
     };
-    if (document.readyState === 'complete') schedule();
-    else window.addEventListener('load', schedule, { once: true });
+    const afterLoad = () => {
+      if (document.readyState === 'complete') schedule();
+      else window.addEventListener('load', schedule, { once: true });
+    };
+    // The current screen first: when its code is still on the way, wait for it (and give up quietly if it never arrives).
+    const current = screenAt[location];
+    if (current === undefined || current.peek() !== null) afterLoad();
+    else current.load().then(afterLoad, () => undefined);
     return () => {
+      cancelled = true;
       window.removeEventListener('load', schedule);
       if (timer !== null) clearTimeout(timer);
+      if (idle !== null) window.cancelIdleCallback(idle);
     };
-  }, []);
+  }, [location, stage]);
 }
 
 function App() {
-  usePreloadScreens();
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>

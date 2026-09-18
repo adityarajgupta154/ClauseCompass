@@ -1,4 +1,5 @@
 import type { Auth, User } from "firebase/auth";
+import type * as FirebaseAuth from "firebase/auth";
 import { SignInError, type AuthClient, type AuthState, type AuthUser, type SignInReason } from "./auth-types";
 
 /**
@@ -127,7 +128,7 @@ export function createFirebaseAuthClient(): AuthClient {
 
   if (state.status === "loading") void auth().catch(() => undefined);
 
-  async function attempt(run: (sdk: typeof import("firebase/auth"), instance: Auth) => Promise<unknown>): Promise<void> {
+  async function attempt(run: (sdk: typeof FirebaseAuth, instance: Auth) => Promise<unknown>): Promise<void> {
     try {
       const instance = await auth();
       const sdk = await import("firebase/auth");

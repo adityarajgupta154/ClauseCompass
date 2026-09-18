@@ -330,8 +330,11 @@ router.get("/sessions/:sessionId", async (req, res) => {
  */
 router.delete("/sessions/:sessionId", async (req, res) => {
   const id = req.params.sessionId;
-  const existed = typeof id === "string" && SESSION_ID.test(id) && (await getSessionStore().deleteOwned(id, userOf(req).uid));
-  if (existed) getInFlight().abort(id as string);
+  let existed = false;
+  if (typeof id === "string" && SESSION_ID.test(id)) {
+    existed = await getSessionStore().deleteOwned(id, userOf(req).uid);
+    if (existed) getInFlight().abort(id);
+  }
   req.log.info({ existed }, "session delete requested");
   res.status(204).end();
 });

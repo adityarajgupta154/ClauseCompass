@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DocumentTypeId, StageId } from "@workspace/rules";
-import { SealedCodec, SealedValueError } from "./sealed";
+import { SealedValueError, type SealedCodec } from "./sealed";
 import {
   checkStoreOptions,
   OUTPUT_KINDS,

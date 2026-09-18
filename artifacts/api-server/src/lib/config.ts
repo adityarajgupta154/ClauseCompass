@@ -17,18 +17,31 @@ import { parseSealingKey } from "../sessions/sealed";
  * ConfigError into a stack trace instead of the plain refusal message.
  */
 
-export type LlmProvider = "anthropic" | "mock";
+export type LlmProvider = "anthropic" | "gemini" | "mock";
 
 /** How the Redis session store is reached: Upstash's REST API, or the Redis wire protocol over a socket (sessions/upstash-rest.ts, redis-socket.ts). */
 export type RedisAccess = { transport: "rest"; url: string; token: string } | { transport: "socket"; url: string };
 
 export type AuthProvider = "firebase" | "mock";
 
-/** Where the Anthropic credentials came from; logged at boot, never the key itself. */
-export type AnthropicKeySource = "own-key" | "replit-integration";
+/** Where the model credentials came from; logged at boot, never the key itself. */
+export type LlmKeySource = "own-key" | "replit-integration";
 
-/** Cheap, fast, strong at structured output (PRD section 7.3(b)); available directly and through the Replit integration. */
-export const DEFAULT_LLM_MODEL = "claude-haiku-4-5";
+/** The model API behind the plain-language step: Anthropic (the default) or Google Gemini; "mock" is the offline stand-in. */
+export type LlmProviderName = "gemini" | "anthropic" | "mock";
+export const DEFAULT_LLM_PROVIDER: LlmProviderName = "anthropic";
+
+/**
+ * One default model per provider, each cheap, fast and strong at structured
+ * output (PRD section 7.3(b)); both are available directly and through the
+ * platform integrations. LLM_MODEL overrides whichever provider is chosen.
+ */
+export const DEFAULT_LLM_MODELS: Readonly<Record<LlmProviderName, string>> = Object.freeze({
+  gemini: "gemini-2.5-flash",
+  anthropic: "claude-haiku-4-5",
+  mock: "mock",
+});
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta";
 const ANTHROPIC_API_URL = "https://api.anthropic.com";
 
 const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
@@ -54,13 +67,14 @@ export interface Config {
   /** Largest upload accepted for one document, in bytes (UPLOAD_MAX_MB); at most the 10 MB the format checks were written for. */
   uploadMaxBytes: number;
   /**
-   * Model provider. "anthropic" talks to the Messages API at `baseUrl`, with
-   * the key either set by hand (ANTHROPIC_API_KEY) or provisioned by the
-   * Replit Anthropic AI integration. "mock" makes no model calls and exists
-   * so the test suite runs offline; it is refused in production.
+   * Model provider. "anthropic" (the default) talks to the Messages API at
+   * `baseUrl`, "gemini" to the Gemini API's generateContent; for each
+   * the key is either set by hand (GEMINI_API_KEY, ANTHROPIC_API_KEY) or
+   * provisioned by the platform's AI integration. "mock" makes no model calls
+   * and exists so the test suite runs offline; it is refused in production.
    */
   llm:
-    | { provider: "anthropic"; apiKey: string; baseUrl: string; keySource: AnthropicKeySource; model: string }
+    | { provider: "gemini" | "anthropic"; apiKey: string; baseUrl: string; keySource: LlmKeySource; model: string }
     | { provider: "mock"; model: string };
   /**
    * Who may open a session. "firebase" accepts the ID tokens Firebase
@@ -210,11 +224,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   PORT: wholeNumber(1, 65535).optional(),
-  LLM_PROVIDER: z.enum(["anthropic", "mock"]).default("anthropic"),
+  LLM_PROVIDER: z.enum(["gemini", "anthropic", "mock"]).default(DEFAULT_LLM_PROVIDER),
   LLM_MODEL: z
     .string()
-    .regex(/^[a-z0-9][a-z0-9.-]*$/i, { message: "must be a model id such as claude-haiku-4-5" })
-    .default(DEFAULT_LLM_MODEL),
+    .regex(/^[a-z0-9][a-z0-9.-]*$/i, { message: "must be a model id such as gemini-2.5-flash or claude-haiku-4-5" })
+    .optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_BASE_URL: httpUrl.default(GEMINI_API_URL),
+  AI_INTEGRATIONS_GEMINI_API_KEY: z.string().optional(),
+  AI_INTEGRATIONS_GEMINI_BASE_URL: httpUrl.optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_BASE_URL: httpUrl.default(ANTHROPIC_API_URL),
   AI_INTEGRATIONS_ANTHROPIC_API_KEY: z.string().optional(),
@@ -344,18 +362,25 @@ function redisAccess(env: RedisEnv): { access: RedisAccess | undefined; problems
   };
 }
 
-/** True when the Replit Anthropic AI integration has provisioned both of its variables. */
-function hasReplitIntegration(env: EnvSource): boolean {
-  return env.AI_INTEGRATIONS_ANTHROPIC_API_KEY !== undefined && env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL !== undefined;
+/** True when the platform's AI integration for that provider has provisioned both of its variables. */
+function hasReplitIntegration(env: EnvSource, provider: "gemini" | "anthropic"): boolean {
+  return provider === "gemini"
+    ? env.AI_INTEGRATIONS_GEMINI_API_KEY !== undefined && env.AI_INTEGRATIONS_GEMINI_BASE_URL !== undefined
+    : env.AI_INTEGRATIONS_ANTHROPIC_API_KEY !== undefined && env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL !== undefined;
 }
 
 /** Rules that span variables. Evaluated alongside the field schema so one run reports every problem. */
 function crossFieldProblems(env: EnvSource): string[] {
   const problems: string[] = [];
-  const provider = env.LLM_PROVIDER ?? "anthropic";
-  if (provider === "anthropic" && env.ANTHROPIC_API_KEY === undefined && !hasReplitIntegration(env)) {
+  const provider = env.LLM_PROVIDER ?? DEFAULT_LLM_PROVIDER;
+  if (provider === "gemini" && env.GEMINI_API_KEY === undefined && !hasReplitIntegration(env, "gemini")) {
     problems.push(
-      "ANTHROPIC_API_KEY: required when LLM_PROVIDER=anthropic (the default) unless the Replit Anthropic AI integration is provisioned (AI_INTEGRATIONS_ANTHROPIC_BASE_URL and AI_INTEGRATIONS_ANTHROPIC_API_KEY); the server never falls back to running without a model. Set LLM_PROVIDER=mock only for offline tests.",
+      "GEMINI_API_KEY: required when LLM_PROVIDER=gemini unless the Gemini AI integration is provisioned (AI_INTEGRATIONS_GEMINI_BASE_URL and AI_INTEGRATIONS_GEMINI_API_KEY). Set LLM_PROVIDER=gemini deliberately to use Gemini, LLM_PROVIDER=anthropic with ANTHROPIC_API_KEY to use Anthropic instead, or LLM_PROVIDER=mock for offline tests.",
+    );
+  }
+  if (provider === "anthropic" && env.ANTHROPIC_API_KEY === undefined && !hasReplitIntegration(env, "anthropic")) {
+    problems.push(
+      "ANTHROPIC_API_KEY: required when LLM_PROVIDER=anthropic (the default) unless the Anthropic AI integration is provisioned (AI_INTEGRATIONS_ANTHROPIC_BASE_URL and AI_INTEGRATIONS_ANTHROPIC_API_KEY). Set LLM_PROVIDER=mock only for offline tests.",
     );
   }
   if (provider === "mock" && isLiveEnvironment(env)) {
@@ -434,37 +459,54 @@ export function parseEnv(source: EnvSource): Config {
   };
 }
 
+/** Make a cross-field validation invariant explicit if this resolver is ever called without the validation above it. */
+function required<T>(name: string, value: T | undefined): T {
+  if (value === undefined) throw new ConfigError([`${name}: required`]);
+  return value;
+}
+
 /** crossFieldProblems guarantees the access and the key exist when the store is redis; the field schema, that the key parses. */
 function resolveSessionStore(parsed: z.infer<typeof envSchema>): Config["sessionStore"] {
   if (parsed.SESSION_STORE === "memory") return { kind: "memory" };
-  return { kind: "redis", access: redisAccess(parsed).access as RedisAccess, key: parseSealingKey(parsed.SESSION_STORE_KEY as string) as Buffer };
+  const keyText = required("SESSION_STORE_KEY", parsed.SESSION_STORE_KEY);
+  return {
+    kind: "redis",
+    access: required("UPSTASH_REDIS_REST_URL or REDIS_URL", redisAccess(parsed).access),
+    key: required("SESSION_STORE_KEY", parseSealingKey(keyText)),
+  };
 }
 
 /** crossFieldProblems guarantees the project id exists when the provider is firebase. */
 function resolveAuth(parsed: z.infer<typeof envSchema>): Config["auth"] {
   if (parsed.AUTH_PROVIDER === "mock") return { provider: "mock" };
-  return { provider: "firebase", projectId: parsed.FIREBASE_PROJECT_ID as string };
+  return { provider: "firebase", projectId: required("FIREBASE_PROJECT_ID", parsed.FIREBASE_PROJECT_ID) };
 }
 
 /** A key set by hand wins over the platform-provisioned one; crossFieldProblems guarantees one of them exists. */
 function resolveLlm(parsed: z.infer<typeof envSchema>): Config["llm"] {
-  if (parsed.LLM_PROVIDER === "mock") return { provider: "mock", model: parsed.LLM_MODEL };
-  if (parsed.ANTHROPIC_API_KEY !== undefined) {
-    return {
-      provider: "anthropic",
-      apiKey: parsed.ANTHROPIC_API_KEY,
-      baseUrl: parsed.ANTHROPIC_BASE_URL,
-      keySource: "own-key",
-      model: parsed.LLM_MODEL,
-    };
+  const provider = parsed.LLM_PROVIDER;
+  const model = parsed.LLM_MODEL ?? DEFAULT_LLM_MODELS[provider];
+  if (provider === "mock") return { provider, model };
+  if (provider === "gemini") {
+    return parsed.GEMINI_API_KEY !== undefined
+      ? { provider, apiKey: parsed.GEMINI_API_KEY, baseUrl: parsed.GEMINI_BASE_URL, keySource: "own-key", model }
+      : {
+          provider,
+          apiKey: required("AI_INTEGRATIONS_GEMINI_API_KEY", parsed.AI_INTEGRATIONS_GEMINI_API_KEY),
+          baseUrl: required("AI_INTEGRATIONS_GEMINI_BASE_URL", parsed.AI_INTEGRATIONS_GEMINI_BASE_URL),
+          keySource: "replit-integration",
+          model,
+        };
   }
-  return {
-    provider: "anthropic",
-    apiKey: parsed.AI_INTEGRATIONS_ANTHROPIC_API_KEY as string,
-    baseUrl: parsed.AI_INTEGRATIONS_ANTHROPIC_BASE_URL as string,
-    keySource: "replit-integration",
-    model: parsed.LLM_MODEL,
-  };
+  return parsed.ANTHROPIC_API_KEY !== undefined
+    ? { provider, apiKey: parsed.ANTHROPIC_API_KEY, baseUrl: parsed.ANTHROPIC_BASE_URL, keySource: "own-key", model }
+    : {
+        provider,
+        apiKey: required("AI_INTEGRATIONS_ANTHROPIC_API_KEY", parsed.AI_INTEGRATIONS_ANTHROPIC_API_KEY),
+        baseUrl: required("AI_INTEGRATIONS_ANTHROPIC_BASE_URL", parsed.AI_INTEGRATIONS_ANTHROPIC_BASE_URL),
+        keySource: "replit-integration",
+        model,
+      };
 }
 
 let cached: Config | undefined;

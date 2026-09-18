@@ -513,7 +513,7 @@ Errors are always `{ error: { code, message } }` with a stable code and a messag
 │   │   └── src/
 │   │       ├── pages/          welcome, sign-in, upload, interview, document-map, review-prompts,
 │   │       │                   ask, compare, packet, safety, official-help, not-found
-│   │       ├── features/       auth, journey (state, copy in English and Hinglish), document (pre-checks,
+│   │       ├── features/       auth, journey (state, copy/ per screen in English and Hinglish), document (pre-checks,
 │   │       │                   samples), analysis (query hooks), grounding (claim resolver, source card),
 │   │       │                   packet, safety, resources, display (language, text size, theme), speech, seo
 │   │       └── components/     shared UI
@@ -526,10 +526,10 @@ Errors are always `{ error: { code, message } }` with a stable code and a messag
 │           ├── extraction/     worker isolation, sniffing, limits, pdf / docx / txt, paragraphs
 │           ├── sessions/       the store contract, the memory and Redis stores, sealing, the in-flight registry
 │           ├── analysis/       chunks, document map, dates, parties, review prompts, ask, compare/
-│           ├── llm/            prompt, claims, Anthropic adapter, concurrency, offline stand-in
+│           ├── llm/            prompt, claims, one transport, Anthropic and Gemini adapters, concurrency, offline stand-in
 │           └── lib/            config (validated at boot), logger, URL redaction
 ├── lib/
-│   ├── rules/                  clause-rule registry, engine, stage plans, decision flow, safety cues, dates
+│   ├── rules/                  clause-rule registry (one file per family), engine, stage plans, decision flow, safety cues, dates
 │   ├── grounding/              chunk and claim types, validator, responsible-language table, retrieval
 │   ├── resources/              typed access to data/resources with its routing
 │   ├── api-spec/               openapi.yaml + Orval config (the contract)
@@ -619,8 +619,10 @@ Read by the API server. The web client is configured at build time from `artifac
 | `SESSION_STORE_ALLOW_PLAINTEXT` | no | – | `true` accepts a plain `redis://` URL (no TLS) to a host beyond this machine and its private network, which is otherwise refused at boot: the documents cross the wire sealed either way, but the database password and the owner uids would not. Prefer the database's `rediss://` URL. |
 | `SESSION_STORE_KEY` | with `SESSION_STORE=redis` | – | 32 bytes, as 64 hex characters (`openssl rand -hex 32`) or base64: the key every document and output is encrypted under before it is written to the database. Changing it makes existing sessions unreadable, which is how to retire them. |
 | `UPLOAD_MAX_MB` | no | `10` | The upload cap in MB, 1–10, for a host whose request bodies are smaller than the format's 10 MB (Vercel: 4). Set the web build's `VITE_UPLOAD_MAX_MB` to the same number so the reader is told the limit that is enforced. |
-| `LLM_MODEL` | no | `claude-haiku-4-5` | Any Anthropic Messages API model id. |
-| `LLM_PROVIDER` | no | `anthropic` | `mock` exists for the tests and the accessibility run; refused when `NODE_ENV=production`. |
+| `LLM_MODEL` | no | `claude-haiku-4-5` (`gemini-2.5-flash` under `LLM_PROVIDER=gemini`) | Any model id of the chosen provider. |
+| `LLM_PROVIDER` | no | `anthropic` | `gemini` switches the plain-language step to the Gemini API (same forced structured output, same validator); `mock` exists for the tests and the accessibility run and is refused when `NODE_ENV=production`. |
+| `GEMINI_API_KEY` | only under `LLM_PROVIDER=gemini`, unless `AI_INTEGRATIONS_GEMINI_BASE_URL` and `AI_INTEGRATIONS_GEMINI_API_KEY` are set | – | Server-side only; the same own-key-wins rule as for Anthropic. |
+| `GEMINI_BASE_URL` | no | `https://generativelanguage.googleapis.com/v1beta` | Own-key mode only; the adapter posts to `<base>/models/<model>:generateContent`. |
 | `ANTHROPIC_BASE_URL` | no | `https://api.anthropic.com` | Own-key mode only. HTTPS, or HTTP on localhost. |
 | `LLM_MAX_CONCURRENT` | no | `8` | Model calls the process has in flight at once, 1–64; the rest wait their turn. |
 | `RATE_LIMIT_PER_MINUTE` | no | `600` | Requests one client address may make per minute across `/api` (a token bucket: a minute's worth may be spent in a burst). `0` turns the budget off, as the offline test suite does. |
@@ -660,16 +662,16 @@ One command, offline, no browser, no API key:
 pnpm test
 ```
 
-Last run on 18 September 2026: 83 files, 1,036 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
+Last run on 18 September 2026: 89 files, 1,049 tests, all passing in 52 s, reported by layer as PRD §12 asks:
 
 | Layer | What it proves |
 | --- | --- |
-| Golden documents (8 files, 78 tests) | Exact clause hits, dates and escalation states for the three synthetic documents and the two-version pair; the whole pipeline over HTTP against the mock model; the golden questions, answered from the right clause or refused. |
+| Golden documents (11 files, 78 tests) | Exact clause hits, dates and escalation states for the three synthetic documents and the two-version pair; the whole pipeline over HTTP against the mock model; the golden questions, answered from the right clause or refused. |
 | Adversarial (10 files, 119 tests) | Prompt injection inside documents, XSS payloads, hostile files (zip bombs, wrong magic bytes, path-like names), safety-escalation routing, route guards (a signed-out or step-skipping reader is redirected, a foreign `next` address is refused), a second reader on the same browser, a double-pressed sign-in, the ask screen (a question with a safety cue never leaves the browser, a statement citing a passage the API did not send is withheld, a model outage is reported and can be retried, a lost session leads back to the upload): the policy does not change, no unsourced statement or verdict is rendered, nothing leaks across readers, nothing crashes. |
 | Accessibility (6 files, 34 tests) | Route focus and document titles, the header's settings menu (language, text size, theme, open/close from the keyboard), the loading state of a slow screen, the sign-in screen, read-aloud reading order (DOM-level). |
-| Schema (6 files, 63 tests) | Malformed model output, unknown chunk ids, missing or altered quotes, verdict wording, the model-call cap: the validator rejects and the request degrades, never throws. |
-| Integration (14 files, 179 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process, one instance over the REST API and one over the socket) and the health check reporting it, packet export, simulated API errors: nothing leaks file contents or secrets. |
-| Unit (39 files, 563 tests) | Rule matching for every family, date parsing, clause alignment, question answering (passage selection, the answer's validation, the refusal reasons), decision-flow transitions, language lint, resource registry, the session-store contract against both stores over each Redis transport, the socket client and its wire framing, and the sealing of stored values, the client's file check and sample loader. |
+| Schema (7 files, 72 tests) | Malformed model output, unknown chunk ids, missing or altered quotes, verdict wording, the model-call cap: the validator rejects and the request degrades, never throws. |
+| Integration (16 files, 179 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process, one instance over the REST API and one over the socket) and the health check reporting it, packet export, simulated API errors: nothing leaks file contents or secrets. |
+| Unit (39 files, 567 tests) | Rule matching for every family, date parsing, clause alignment, question answering (passage selection, the answer's validation, the refusal reasons), decision-flow transitions, language lint, resource registry, the session-store contract against both stores over each Redis transport, the socket client and its wire framing, and the sealing of stored values, the client's file check and sample loader. |
 
 `pnpm test:coverage` runs the same suite under V8 coverage over the product code (both services and the libraries; tests, test helpers and the offline stand-ins excluded) and writes an HTML report to `coverage/`. On 17 September 2026: 86.9% of statements, 79.2% of branches, 88.4% of lines. No threshold is enforced; the per-layer table is the gate, the coverage report is where to look for what it does not reach.
 
@@ -678,6 +680,33 @@ Details, including how to run one layer, are in [tests/README.md](tests/README.m
 ### Question answering
 
 The golden questions in [`tests/golden/questions.ts`](tests/golden/questions.ts) are what a tenant, a candidate and a receiving party would ask about the three synthetic documents, each paired with the clause that answers it, plus questions the documents do not settle (some sharing no word with the document, some on its subject but unanswered by it). Three checks read the one table: the retrieval golden test pins that the answering clause ranks in the top three paragraphs; the pipeline golden test pins, against the offline stand-in, that the answer is built from that clause and that a question sharing no word with the document is refused before any model call; and `pnpm eval:ask` runs the same questions against the configured model and prints every answer, failing when fewer than 80% are answered from the right clause or fewer than 70% of the unsettled ones are refused. Last live run on 18 September 2026 with `claude-haiku-4-5`: 25 of 27 answered from the right clause, 8 of 9 unsettled questions refused; the one answered was *"kya yeh agreement court mein valid hai"*, met with the governing-law clause quoted, which is a statement of what the document says and not a verdict, and the two misses were refusals, not wrong answers. The floors sit below 100% on purpose: the model is not deterministic, and a single miss is worth reading rather than failing on. What the validator checks is mechanical, the quote in the passage it cites, the register and the confidence; whether a statement says more than its quote is not something it can judge, which is why the quote is shown beside every statement and why the eval prints each answer for a person to read.
+
+### Code quality
+
+The gates are in the repository, not in a style guide, so they hold for every change: the numbers below are what they enforce today.
+
+| Gate | Setting | State on 18 September 2026 |
+| --- | --- | --- |
+| TypeScript | `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `useUnknownInCatchVariables` in [`tsconfig.base.json`](tsconfig.base.json), inherited by every package; `noEmitOnError` | clean across all packages |
+| Type escape hatches | `@typescript-eslint/no-explicit-any` as an error; no `@ts-ignore` or `@ts-expect-error`; no `eslint-disable` | 0 of each in the 254 hand-written source files (25,761 lines, tests excluded); the one third-party type gap (the pdf.js worker entry) is a module declaration, not a suppression |
+| File size | `max-lines` 450 (blank and comment lines excluded) as an ESLint error for every source, test and script file | largest hand-written module is the session router at 528 raw lines; the two UI copy tables, the clause-rule registry, the tokenizer's word lists and the two longest test files were split along their own seams (per screen, per rule family, data from logic, per describe block) with byte-identical output, proven by the golden tests |
+| Imports and style | `consistent-type-imports`, `eqeqeq`, `prefer-const`, `no-var`; the rules of React hooks; the strict static accessibility rule set for JSX; `no-console` in the web client | clean |
+| Boundaries | the four libraries under `lib/` are pure TypeScript with no I/O, so rules, extraction, grounding and the API client are testable without a server; the two model adapters share one transport (timeout, abort, error mapping, JSON handling) and keep only their protocol differences | enforced by the workspace's package graph |
+| Configuration | every environment variable is parsed once at boot by a schema with cross-field rules; an invariant that cannot be typed is a named `ConfigError`, never a cast | 0 primitive casts in the resolver |
+
+The same five checks (type check, lint, tests, secret scan, size ceilings) run locally as `pnpm preflight` and on every push in CI; the sections below give the runtime and bundle numbers those gates protect.
+
+### Efficiency
+
+Measured on 18 September 2026 from a production build and the offline stand-in model (so the server timings exclude model latency, which the model-call budget below bounds separately).
+
+**Web client.** The first screen loads a 107 KB (gzip) entry chunk; the React runtime (61 KB) and the sign-in SDK (46 KB) are separate vendor chunks with content-hashed names, so a release that changes only product code leaves them cached in the reader's browser. The nine screens after the welcome are separate files fetched on first use; instead of fetching all of them 2.5 s after load, the client fetches only the screens the current one links to (the same forks the pages make, so a compare-versions reader gets Compare and everyone else Packet), once the current screen has arrived and the browser is idle, and not at all when the browser reports Save-Data. Total JavaScript across all 28 chunks is 276 KB gzip; the stylesheet is 17 KB gzip. Fonts went from 22 files (670 KB) to the 15 actually used (498 KB) after the unused italic faces were dropped; the primary text face is preloaded. `pnpm check:bundle-size`, run after the build in the preflight and in CI, fails when the entry chunk passes 125 KB or all JavaScript passes 320 KB gzip (each about 15% above today's measurement), so a dependency that would double the download cannot land quietly.
+
+**API.** Responses are gzip-compressed for clients that accept it: the document map of the synthetic offer letter is 22.3 KB raw and 5.4 KB on the wire, the review prompts 59.2 KB and 9.1 KB. On the 1,397-word synthetic offer letter, upload plus extraction, format checks and clause matching took 343 ms (first request, cold), the document map 133 ms, the review prompts 61 ms and a question 38 ms, all without the model.
+
+**Model budget.** No call ever carries the document. Each of the six document-map fields gets at most 6 excerpts and 7,000 characters, a review-prompt call at most 8 excerpts and 10,000 characters, a question at most 10,000 characters of the passages retrieval chose; the output token budget is sized to the number of claims requested; and each field or task makes at most two calls (one, plus one retry when the validator rejects). A global cap of eight calls in flight per process (`LLM_MAX_CONCURRENT`) bounds fan-out under load, and a 30 s per-call timeout bounds a slow upstream. A cross-session cache keyed on document content was considered and rejected: documents are deleted when the session ends, and reusing one reader's analysis for another would contradict that promise.
+
+**Test suite.** 1,049 tests across 89 files run in 52 s on a 4-core machine, offline, which is what keeps every gate above cheap enough to run on every push.
 
 ### Accessibility
 
@@ -711,9 +740,9 @@ Submission attempts are limited, so run the same checks before each one, on `mai
 pnpm preflight
 ```
 
-That is `scripts/preflight.sh`: `pnpm build` (the strict type check over every package, then both bundles), `pnpm lint` (ESLint over every package, test and script: the core rules, the TypeScript rule set, the rules of React hooks and the static accessibility rules for JSX; `eslint.config.mjs`), `pnpm test`, `pnpm check:client-secrets` and `pnpm check:size`, in that order, stopping at the first failure (the size ceiling comes last so that a payload over it can never hide a secret in the bundle). GitHub runs the same five steps on every push and pull request to `main` on Node 22 and 24 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), plus `pnpm audit` (high and critical) as its own job, so a new advisory fails on its own line while the preflight jobs still say whether the code builds and passes. Last full preflight on 17 September 2026: build, type check and lint clean, 922 tests passing, no secret names or key patterns in the source, the client bundle or any commit, no `.env` or real document ever committed; the payload was about 5.1 MB across some 460 files, which is over the internal ceiling described next (see the note there).
+That is `scripts/preflight.sh`: `pnpm build` (the strict type check over every package, then both bundles), `pnpm lint` (ESLint over every package, test and script: the core rules, the TypeScript rule set, the rules of React hooks and the static accessibility rules for JSX; `eslint.config.mjs`), `pnpm test`, `pnpm check:client-secrets`, `pnpm check:bundle-size` and `pnpm check:size`, in that order, stopping at the first failure (the size ceiling comes last so that a payload over it can never hide a secret in the bundle). GitHub runs the same six steps on every push and pull request to `main` on Node 22 and 24 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), plus `pnpm audit` (high and critical) as its own job, so a new advisory fails on its own line while the preflight jobs still say whether the code builds and passes. Last full preflight on 18 September 2026: build, type check and lint clean, 1,049 tests passing in 51 s, no secret names or key patterns in the source, the client bundle or any commit, no `.env` or real document ever committed, both bundle budgets met; the payload was 4.78 MiB across 560 files, under the ceiling described next.
 
-`pnpm check:size` sums every tracked and unignored file and fails above 5 MiB, an internal ceiling at half the 10 MB submission limit; `samples/real/` and `attached_assets/` are git-ignored so real documents cannot be committed by accident. Fixtures are text and JSON only. The ceiling started at 2 MiB and moved to 3 MiB on 15 September when source and tests alone passed it; the README's screenshots and journey animation (17 September) took the tree to 5.2 MiB, so on 18 September the screenshots were re-encoded at 1000 px wide and quality 72 (1.06 MB to 0.61 MB for the set) and the ceiling moved to 5 MiB, with the tree at 4.74 MiB. Its largest files are the journey animation (461 KB), the lockfile, the hero photograph and the design prompt blocks.
+`pnpm check:size` sums every tracked and unignored file and fails above 5 MiB, an internal ceiling at half the 10 MB submission limit; `samples/real/` and `attached_assets/` are git-ignored so real documents cannot be committed by accident. Fixtures are text and JSON only. The ceiling started at 2 MiB and moved to 3 MiB on 15 September when source and tests alone passed it; the README's screenshots and journey animation (17 September) took the tree to 5.2 MiB, so on 18 September the screenshots were re-encoded at 1000 px wide and quality 72 (1.06 MB to 0.61 MB for the set) and the ceiling moved to 5 MiB, with the tree at 4.78 MiB. Its largest files are the journey animation (461 KB), the lockfile, the hero photograph and the design prompt blocks.
 
 <p align="right"><a href="#top">Back to top ↑</a></p>
 

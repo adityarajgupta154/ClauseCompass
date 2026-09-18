@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse, type StopReason } from "./provider";
+import { DEFAULT_TIMEOUT_MS, postJson } from "./transport";
+
+export { DEFAULT_TIMEOUT_MS } from "./transport";
 
 /**
  * Anthropic Messages API over fetch: one endpoint, one forced tool call. The
@@ -25,7 +28,6 @@ export interface AnthropicOptions {
 }
 
 export const ANTHROPIC_VERSION = "2023-06-01";
-export const DEFAULT_TIMEOUT_MS = 30_000;
 
 const toolUseBlock = z.object({ type: z.literal("tool_use"), name: z.string(), input: z.unknown() });
 const textBlock = z.object({ type: z.literal("text"), text: z.string() });
@@ -56,7 +58,6 @@ function stopReason(raw: string | null | undefined): StopReason {
 export function createAnthropicProvider(options: AnthropicOptions): LlmProvider {
   const doFetch = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/v1/messages`;
 
   return {
     name: "anthropic",
@@ -77,56 +78,32 @@ export function createAnthropicProvider(options: AnthropicOptions): LlmProvider 
         tool_choice: { type: "tool", name: request.output.name, disable_parallel_tool_use: true },
       };
 
-      const timeout = AbortSignal.timeout(timeoutMs);
-      const transportError = (err: unknown): never => {
-        if (timeout.aborted) {
-          throw new LlmError("timeout", `Anthropic API call exceeded ${timeoutMs} ms`, undefined, { cause: err });
-        }
-        if (signal?.aborted) throw err;
-        throw new LlmError("network", "Anthropic API could not be reached", undefined, { cause: err });
-      };
-
-      let response: Response;
-      try {
-        response = await doFetch(endpoint, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": options.apiKey,
-            "anthropic-version": ANTHROPIC_VERSION,
-          },
-          body: JSON.stringify(body),
-          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-        });
-      } catch (err) {
-        return transportError(err);
-      }
-
-      // The body can still fail mid-stream (abort, timeout, dropped connection); only a non-JSON body is "no JSON".
-      let json: unknown;
-      try {
-        json = await response.json();
-      } catch (err) {
-        if (!(err instanceof SyntaxError)) return transportError(err);
-        json = undefined;
-      }
-
-      if (!response.ok) {
-        const parsed = errorResponse.safeParse(json);
-        const type = parsed.success ? parsed.data.error.type : "unknown";
-        throw new LlmError(
-          errorKind(response.status),
-          `Anthropic API responded ${response.status} (${type})`,
-          response.status,
-        );
-      }
+      const { status, json } = await postJson({
+        url: options.baseUrl,
+        path: "/v1/messages",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": options.apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+        },
+        body,
+        timeoutMs,
+        signal,
+        fetch: doFetch,
+        provider: "Anthropic",
+        errorKind,
+        errorType: (value) => {
+          const parsed = errorResponse.safeParse(value);
+          return parsed.success ? parsed.data.error.type : undefined;
+        },
+      });
 
       const parsed = messageResponse.safeParse(json);
       if (!parsed.success) {
         throw new LlmError(
           "malformed-response",
           "Anthropic API returned a response of an unexpected shape",
-          response.status,
+          status,
         );
       }
 

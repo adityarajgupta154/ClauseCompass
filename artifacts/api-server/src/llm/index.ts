@@ -1,6 +1,7 @@
 import { getConfig, type Config } from "../lib/config";
 import { createAnthropicProvider } from "./anthropic";
 import { limitConcurrency } from "./concurrency";
+import { createGeminiProvider } from "./gemini";
 import { createMockProvider } from "./mock";
 import type { LlmProvider } from "./provider";
 
@@ -11,9 +12,9 @@ import type { LlmProvider } from "./provider";
  */
 
 export function createLlmProvider(llm: Config["llm"]): LlmProvider {
-  return llm.provider === "anthropic"
-    ? createAnthropicProvider({ apiKey: llm.apiKey, baseUrl: llm.baseUrl })
-    : createMockProvider();
+  if (llm.provider === "gemini") return createGeminiProvider({ apiKey: llm.apiKey, baseUrl: llm.baseUrl });
+  if (llm.provider === "anthropic") return createAnthropicProvider({ apiKey: llm.apiKey, baseUrl: llm.baseUrl });
+  return createMockProvider();
 }
 
 let cached: LlmProvider | undefined;

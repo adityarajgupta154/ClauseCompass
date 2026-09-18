@@ -53,7 +53,7 @@ export function makePdf(paragraphs: string[], options: MakePdfOptions = {}): Mad
   const spaceAfterPt = "spaceAfterPt" in separator ? separator.spaceAfterPt : 0;
 
   const pages: { lines: string[]; paragraphs: string[] }[] = [];
-  let current = { lines: [] as string[], paragraphs: [] as string[] };
+  let current: { lines: string[]; paragraphs: string[] } = { lines: [], paragraphs: [] };
   const flush = () => {
     if (current.lines.length > 0) pages.push(current);
     current = { lines: [], paragraphs: [] };

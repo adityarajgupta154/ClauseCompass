@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, DEFAULT_LLM_MODEL, parseEnv } from "./config";
+import { ConfigError, DEFAULT_LLM_MODELS, parseEnv } from "./config";
 
 /**
  * The model-access part of the environment: which key is used, from where,
@@ -8,7 +8,63 @@ import { ConfigError, DEFAULT_LLM_MODEL, parseEnv } from "./config";
  * stand-in never reaches production.
  */
 
-const base = { PORT: "8080", NODE_ENV: "test", FIREBASE_PROJECT_ID: "clausecompass-test" };
+const base = { PORT: "8080", NODE_ENV: "test", FIREBASE_PROJECT_ID: "clausecompass-test", LLM_PROVIDER: "anthropic" };
+
+describe("parseEnv: llm, when LLM_PROVIDER=gemini", () => {
+  it("reads the user's own key and the Gemini API URL by default", () => {
+    const config = parseEnv({ ...base, LLM_PROVIDER: "gemini", GEMINI_API_KEY: "own-key" });
+    expect(config.llm).toEqual({
+      provider: "gemini",
+      apiKey: "own-key",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+      keySource: "own-key",
+      model: DEFAULT_LLM_MODELS.gemini,
+    });
+  });
+
+  it("falls back to the platform integration, and lets a hand-set key win over it", () => {
+    const integration = {
+      AI_INTEGRATIONS_GEMINI_API_KEY: "dummy",
+      AI_INTEGRATIONS_GEMINI_BASE_URL: "https://ai.example/gemini",
+    };
+    expect(parseEnv({ ...base, LLM_PROVIDER: "gemini", ...integration }).llm).toMatchObject({
+      provider: "gemini",
+      apiKey: "dummy",
+      baseUrl: "https://ai.example/gemini",
+      keySource: "replit-integration",
+    });
+    expect(parseEnv({ ...base, LLM_PROVIDER: "gemini", ...integration, GEMINI_API_KEY: "own-key", GEMINI_BASE_URL: "https://proxy.example" }).llm).toMatchObject({
+      keySource: "own-key",
+      apiKey: "own-key",
+      baseUrl: "https://proxy.example",
+    });
+  });
+
+  it("names GEMINI_API_KEY and the alternatives when neither source is set", () => {
+    const attempt = () =>
+      parseEnv({ ...base, LLM_PROVIDER: "gemini", AI_INTEGRATIONS_GEMINI_BASE_URL: "https://ai.example" });
+    expect(attempt).toThrow(ConfigError);
+    try {
+      attempt();
+    } catch (err) {
+      const message = (err as Error).message;
+      expect(message).toContain("GEMINI_API_KEY");
+      expect(message).toContain("AI_INTEGRATIONS_GEMINI_API_KEY");
+      expect(message).toContain("LLM_PROVIDER=anthropic");
+    }
+  });
+
+  it("applies LLM_MODEL to whichever provider is chosen, and the provider's own default otherwise", () => {
+    expect(parseEnv({ ...base, LLM_PROVIDER: "gemini", GEMINI_API_KEY: "k", LLM_MODEL: "gemini-2.5-pro" }).llm.model).toBe(
+      "gemini-2.5-pro",
+    );
+    expect(parseEnv({ ...base, ANTHROPIC_API_KEY: "sk-own" }).llm.model).toBe(DEFAULT_LLM_MODELS.anthropic);
+    expect(parseEnv({ ...base, LLM_PROVIDER: "mock" }).llm.model).toBe(DEFAULT_LLM_MODELS.mock);
+    expect(() =>
+      parseEnv({ ...base, LLM_PROVIDER: "gemini", GEMINI_API_KEY: "k", GEMINI_BASE_URL: "ftp://nope" }),
+    ).toThrow(ConfigError);
+  });
+});
 
 describe("parseEnv: llm", () => {
   it("uses the hand-set Anthropic key against the public API by default", () => {
@@ -18,7 +74,7 @@ describe("parseEnv: llm", () => {
       apiKey: "sk-own",
       baseUrl: "https://api.anthropic.com",
       keySource: "own-key",
-      model: DEFAULT_LLM_MODEL,
+      model: DEFAULT_LLM_MODELS.anthropic,
     });
   });
 
@@ -86,7 +142,7 @@ describe("parseEnv: llm", () => {
   });
 
   it("keeps the mock provider offline and out of production", () => {
-    expect(parseEnv({ ...base, LLM_PROVIDER: "mock" }).llm).toEqual({ provider: "mock", model: DEFAULT_LLM_MODEL });
+    expect(parseEnv({ ...base, LLM_PROVIDER: "mock" }).llm).toEqual({ provider: "mock", model: DEFAULT_LLM_MODELS.mock });
     expect(() => parseEnv({ ...base, NODE_ENV: "production", LLM_PROVIDER: "mock" })).toThrow(
       /not allowed when NODE_ENV=production/,
     );

@@ -1,4 +1,5 @@
 import type { TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
+import type * as PdfJsModule from "pdfjs-dist/legacy/build/pdf.mjs";
 import { ExtractionError } from "./errors";
 import { MAX_CHARACTERS, MAX_PAGES, MIN_TEXT_CHARACTERS } from "./limits";
 import { normalizeParagraph, toChunks, type PageParagraphs } from "./paragraphs";
@@ -20,7 +21,7 @@ import type { ExtractedChunk } from "./types";
  * than they need long paragraphs.
  */
 
-type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+type PdfJs = typeof PdfJsModule;
 
 let pdfjsPromise: Promise<PdfJs> | undefined;
 
@@ -37,19 +38,19 @@ function loadPdfJs(): Promise<PdfJs> {
  * of the import. Everything else, and everything after, passes through.
  */
 async function importQuietly(): Promise<PdfJs> {
-  const original = { log: console.log, warn: console.warn };
+  const original = { log: console["log"], warn: console.warn };
   const muted =
     (write: (...args: unknown[]) => void) =>
     (...args: unknown[]) => {
       if (typeof args[0] === "string" && /^Warning: Cannot (?:load|polyfill) /.test(args[0])) return;
       write(...args);
     };
-  console.log = muted(original.log);
+  console["log"] = muted(original.log);
   console.warn = muted(original.warn);
   try {
     return await import("pdfjs-dist/legacy/build/pdf.mjs");
   } finally {
-    console.log = original.log;
+    console["log"] = original.log;
     console.warn = original.warn;
   }
 }

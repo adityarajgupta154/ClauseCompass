@@ -44,7 +44,7 @@ const server = app.listen(config.port, (err) => {
       llm: {
         provider: config.llm.provider,
         model: config.llm.model,
-        ...(config.llm.provider === "anthropic"
+        ...(config.llm.provider !== "mock"
           ? { keySource: config.llm.keySource, host: new URL(config.llm.baseUrl).host }
           : {}),
       },

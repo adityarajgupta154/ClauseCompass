@@ -98,7 +98,6 @@ export function DocumentSlot({
   return (
     // The drag handlers add a pointer-only shortcut around the file input below; the input is the control, and keyboard and
     // assistive-technology users reach it directly, so this box needs no role or key handling of its own.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drop target around a native file input, see above
     <div
       className="space-y-3"
       onDragEnter={onDragEnter}

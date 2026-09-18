@@ -1,5 +1,5 @@
 # The submission preflight, run by GitHub on every push and pull request to
-# main: the same five steps as `pnpm preflight` (scripts/preflight.sh), on the
+# main: the same six steps as `pnpm preflight` (scripts/preflight.sh), on the
 # two Node lines the repo supports (22.13+: --env-file-if-exists and ESLint 10, and the
 # current release). Offline by construction: the tests use the stand-in model
 # and sign-in, no key or browser is needed, and no secret is read here.
@@ -54,6 +54,8 @@ jobs:
         run: pnpm run test
       - name: Client secret scan (source and bundle)
         run: pnpm run check:client-secrets
+      - name: Web bundle ceiling
+        run: pnpm run check:bundle-size
       - name: Repo payload ceiling
         run: pnpm run check:size
 

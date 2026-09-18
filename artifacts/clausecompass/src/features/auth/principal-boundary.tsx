@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useReducer, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { useJourney } from "@/features/journey/journey-context";
 
@@ -18,7 +18,10 @@ export function PrincipalBoundary({ children }: { children: ReactNode }) {
   const { forgetReader } = useJourney();
   // undefined while the persisted sign-in is being restored; null when signed out.
   const uid = state.status === "signed-in" ? state.user.uid : state.status === "signed-out" ? null : undefined;
-  const [known, setKnown] = useState<string | null | undefined>(uid);
+  const [known, remember] = useReducer(
+    (_previous: string | null | undefined, current: string | null | undefined) => current,
+    uid,
+  );
   const leaving = known !== undefined && known !== null && uid !== undefined && uid !== known;
 
   // Deliberately after the commit, not during render: the journey must be forgotten (an update outside this component) before the
@@ -26,8 +29,7 @@ export function PrincipalBoundary({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (uid === undefined || uid === known) return;
     if (known !== undefined && known !== null) forgetReader();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above; adjusting the state during render would mount the children before forgetReader() has taken effect
-    setKnown(uid);
+    remember(uid);
   }, [uid, known, forgetReader]);
 
   if (leaving) return null;

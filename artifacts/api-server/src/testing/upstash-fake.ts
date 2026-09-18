@@ -32,6 +32,10 @@ type Reply = { result: unknown } | { error: string };
 /** The commands `execute` knows; the socket listener refuses any other at queue time, as Redis does. */
 const KNOWN_COMMANDS = new Set(["HSET", "HGET", "HGETALL", "PEXPIRE", "PTTL", "DEL", "EXISTS", "DBSIZE", "EVAL"]);
 
+function isCommand(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((part) => typeof part === "string");
+}
+
 /** How the next answer goes wrong: an HTTP status with a Redis error (REST only), the connection cut before answering, an answer that never comes, bytes that are not the protocol, or an answer that comes late (socket only, after LATE_ANSWER_MS). */
 export type FakeFailure = { status: number; error: string } | "network" | "hang" | "garbage" | "late";
 
@@ -86,9 +90,11 @@ export class FakeUpstash {
         const payload = JSON.parse(body) as unknown;
         let reply: unknown;
         if (req.url === "/pipeline" || req.url === "/multi-exec") {
-          reply = (payload as string[][]).map((command) => this.run(command));
+          if (!Array.isArray(payload) || !payload.every(isCommand)) throw new Error("the REST pipeline payload must be an array of string commands");
+          reply = payload.map((command) => this.run(command));
         } else {
-          reply = this.run(payload as string[]);
+          if (!isCommand(payload)) throw new Error("the REST payload must be a string command");
+          reply = this.run(payload);
         }
         res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(reply));
       });
@@ -319,7 +325,7 @@ export class FakeUpstash {
     const key = keys[0]!;
     switch (script) {
       case REDIS_SCRIPTS.create: {
-        if ((this.execute(["DBSIZE"]) as number) >= Number(argv[0])) return 0;
+        if (this.size >= Number(argv[0])) return 0;
         this.execute(["HSET", key, ...argv.slice(2)]);
         this.execute(["PEXPIRE", key, argv[1]!]);
         return 1;

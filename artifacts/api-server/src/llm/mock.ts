@@ -53,7 +53,10 @@ function readAssignments(user: string, allowed: readonly string[]): Map<string, 
   const assignments = new Map<string, string[]>();
   const task = user.trimEnd().split("\n").slice(0, -1).join("\n");
   for (const match of task.matchAll(/\b([a-z][a-z0-9-]*) \([^)]*\): (p\d+(?:, p\d+)*)/g)) {
-    const [, key, ids] = match as unknown as [string, string, string];
+    const [, key, ids] = match;
+    if (key === undefined || ids === undefined) {
+      throw new Error("the assignment pattern did not return its required captures");
+    }
     if (allowed.includes(key)) assignments.set(key, ids.split(", "));
   }
   return assignments;

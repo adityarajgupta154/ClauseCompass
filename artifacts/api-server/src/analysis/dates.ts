@@ -115,7 +115,16 @@ function numeric(text: string): DateMention[] {
   const found: DateMention[] = [];
   NUMERIC.lastIndex = 0;
   for (let match = NUMERIC.exec(text); match !== null; match = NUMERIC.exec(text)) {
-    const [asWritten, first, separator, second, third] = match as unknown as [string, string, string, string, string];
+    const [asWritten, first, separator, second, third] = match;
+    if (
+      asWritten === undefined ||
+      first === undefined ||
+      separator === undefined ||
+      second === undefined ||
+      third === undefined
+    ) {
+      throw new Error("the numeric date pattern did not return its required captures");
+    }
     const span = { start: match.index, end: match.index + asWritten.length };
     const mention = readNumeric(first, separator, second, third);
     if (mention) found.push({ ...mention, asWritten, span });

@@ -6,12 +6,11 @@
  * the first paint, no reader's address sent to a font server, and the
  * files are hashed and cached with the rest of the build. Each family is
  * split by script with unicode-range, so a page fetches only the subset
- * it shows; italic faces are fetched only where italic text appears.
+ * it shows; the DM Sans italic face is fetched only where italic text appears.
  */
 @import "@fontsource-variable/dm-sans/wght.css";
 @import "@fontsource-variable/dm-sans/wght-italic.css";
 @import "@fontsource-variable/lora/wght.css";
-@import "@fontsource-variable/lora/wght-italic.css";
 @import "@fontsource-variable/caveat/wght.css";
 @plugin "@tailwindcss/typography";
 

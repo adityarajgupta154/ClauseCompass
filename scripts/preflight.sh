@@ -27,6 +27,7 @@ step "build (type check + bundle every package)" pnpm run build
 step "lint (core rules, hooks, static accessibility)" pnpm run lint
 step "test (every layer, offline)" pnpm run test
 step "check:client-secrets (client source and bundle)" pnpm run check:client-secrets
+step "check:bundle-size (web bundle ceiling)" pnpm run check:bundle-size
 step "check:size (repo payload ceiling)" pnpm run check:size
 
 printf '\nPreflight passed for the working tree. It is only valid for the commit that is pushed: commit first, or run it again after committing.\n'

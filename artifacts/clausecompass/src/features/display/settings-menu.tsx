@@ -39,8 +39,12 @@ const ABOUT_TARGET_ID = "boundary-heading";
  * reported, not used.
  */
 function feedbackUrl(): string | null {
-  const configured = import.meta.env.VITE_FEEDBACK_URL as string | undefined;
+  const configured: unknown = import.meta.env.VITE_FEEDBACK_URL;
   if (configured === undefined || configured === "") return null;
+  if (typeof configured !== "string") {
+    console.error(`VITE_FEEDBACK_URL must be a string; "Give feedback" is not shown.`);
+    return null;
+  }
   if (/^(https:|mailto:)/i.test(configured)) return configured;
   console.error(`VITE_FEEDBACK_URL must be an https: or mailto: address; "Give feedback" is not shown.`);
   return null;
@@ -132,14 +136,13 @@ export function SettingsMenu({ home = true }: { home?: boolean }) {
       </button>
       {/* A named region, so the controls sit inside a landmark like everything else on the page. The two handlers only observe
           events bubbling up from its buttons (Escape closes the panel, focus leaving it closes the panel); the region itself is not operable. */}
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- listeners for bubbled key and focus events, see above */}
       <section
         ref={panel}
         id={panelId}
         hidden={!open}
         aria-label={words.label}
-        onKeyDown={onKeyDown}
-        onBlur={onBlur}
+        onKeyDownCapture={onKeyDown}
+        onBlurCapture={onBlur}
         // Never taller than the viewport under the (sticky) header: at the largest text size the rows scroll inside the panel instead of running off the bottom of the screen.
         className="absolute right-0 top-[calc(100%+0.625rem)] z-50 max-h-[calc(100dvh-6rem)] w-[min(25rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-[1.25rem] border border-border bg-card p-2 text-left shadow-[0_24px_48px_-16px_rgba(31,42,58,0.28)]"
         data-testid="settings-panel"

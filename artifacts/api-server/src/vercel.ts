@@ -28,6 +28,5 @@ export default app;
  */
 if (process.env.CLAUSECOMPASS_TRACE_HINTS === "never") {
   await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // @ts-expect-error the worker module ships no type declarations; it is named here for the tracer only.
   await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
 }

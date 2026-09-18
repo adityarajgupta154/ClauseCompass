@@ -50,6 +50,8 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
       // `any` is allowed only where a comment says why; the rule is an error so that "why" gets written.
       "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "max-lines": ["error", { max: 450, skipBlankLines: true, skipComments: true }],
       eqeqeq: ["error", "always", { null: "ignore" }],
       "no-var": "error",
       "prefer-const": ["error", { destructuring: "all" }],
@@ -72,6 +74,11 @@ export default defineConfig([
     rules: {
       // Card-style labels wrap the control and its text a few elements deep; the default depth of 2 misses the text and reports a label with none.
       "jsx-a11y/label-has-associated-control": ["error", { assert: "either", depth: 6 }],
+      // A drop target is a pointer-only shortcut around a native file input, which stays the control; drag events do not create a keyboard interaction that needs a role or a parallel key handler.
+      "jsx-a11y/no-static-element-interactions": [
+        "error",
+        { handlers: ["onClick", "onMouseDown", "onMouseUp", "onKeyPress", "onKeyDown", "onKeyUp", "onFocus", "onBlur"] },
+      ],
     },
   },
 

@@ -39,10 +39,9 @@ export const screens = {
 } satisfies Record<string, Screen>;
 
 /**
- * Fetches every screen's code. The app calls it a moment after the welcome
- * screen has loaded, so the reader's next step is on hand before it is
- * taken; tests that mount the routes await it first, so a screen renders
- * on the mount rather than after a loading line.
+ * Fetches every screen's code. Tests that mount the routes await it first,
+ * so a screen renders on the mount rather than after a loading line; the app
+ * itself fetches only the next screen through App.tsx.
  */
 export function preloadScreens(): Promise<void> {
   return Promise.all(Object.values(screens).map((entry) => entry.prefetch())).then(() => undefined);

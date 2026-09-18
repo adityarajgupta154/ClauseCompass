@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
@@ -57,6 +58,9 @@ app.use(
     crossOriginResourcePolicy: { policy: config.corsOrigins.length > 0 ? "cross-origin" : "same-origin" },
   }),
 );
+
+// Compress ordinary API responses before they reach the routes.
+app.use(compression());
 
 /**
  * Cross-origin access is off unless CORS_ORIGINS names the browser origins

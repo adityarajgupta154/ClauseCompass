@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
-import { AlertCircle, ArrowRight, Clock, FileText, LoaderCircle, ShieldCheck, Check } from "lucide-react";
+import { AlertCircle, ArrowRight, Clock, FileText, LoaderCircle, Check } from "lucide-react";
 import { createSession, deleteSession, type SessionUpload } from "@workspace/api-client-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -9,6 +9,7 @@ import { DocumentArt } from "@/components/upload-art";
 import { UploadNotes, UploadPapers, UploadPlant } from "@/components/upload-aside";
 import { describeAnalysisError } from "@/features/analysis/analysis-error";
 import { DocumentSlot } from "@/features/document/document-slot";
+import { UploadRetentionNotice } from "@/features/document/upload-retention-notice";
 import { SAMPLES, loadSampleFile, type Sample } from "@/features/document/samples";
 import { slotsForStage, type SlotFiles, type SlotId } from "@/features/document/slots";
 import { checkFile } from "@/features/document/validate-file";
@@ -321,36 +322,7 @@ function UploadForm({ stage, documents, setDocument, clearDocument, session, set
 
             {/* Retention notice (FR-12): under the file input and above the consent that refers to it, so it is read before
               anything is sent. Choosing a file sends nothing; pressing Continue does, and that comes after the consent. */}
-            <div className="relative mx-auto max-w-[66rem] px-6">
-              <section
-                aria-labelledby="retention-heading"
-                data-testid="section-retention"
-                className="space-y-6 rounded-2xl border border-border/70 bg-card p-7 shadow-sm md:p-9"
-              >
-                <div className="flex items-start gap-5 md:items-center">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
-                    <ShieldCheck aria-hidden="true" className="h-6 w-6" strokeWidth={1.75} />
-                  </div>
-                  <h2 id="retention-heading" className="font-serif text-2xl font-medium leading-snug tracking-tight text-foreground md:text-[1.75rem]">
-                    {copy.upload.notice.title}
-                  </h2>
-                </div>
-                <ul className="space-y-5 md:pl-[4.25rem]">
-                  {copy.upload.notice.points(ttlMinutes).map((point, index) => (
-                    <li
-                      key={index}
-                      className="flex gap-4 text-lg leading-relaxed text-foreground/80"
-                      data-testid={`text-retention-point-${index}`}
-                    >
-                      <span aria-hidden="true" className="mt-1 select-none text-xl font-bold text-primary/60">
-                        —
-                      </span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </div>
+            <UploadRetentionNotice ttlMinutes={ttlMinutes} />
           </div>
 
           <section aria-labelledby="samples-heading" className="mx-auto max-w-4xl space-y-8 rounded-3xl border border-border/50 bg-muted/20 p-8 md:p-10">

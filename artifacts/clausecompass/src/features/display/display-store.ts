@@ -48,7 +48,7 @@ function isLocale(value: unknown): value is Locale {
 }
 
 function isTextSize(value: unknown): value is TextSize {
-  return (TEXT_SIZES as readonly number[]).includes(value as number);
+  return TEXT_SIZES.some((size) => size === value);
 }
 
 function isTheme(value: unknown): value is Theme {

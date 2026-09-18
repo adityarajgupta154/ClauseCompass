@@ -76,7 +76,9 @@ export function createFirebaseVerifier(options: FirebaseVerifierOptions): AuthVe
       }
       // Firebase's own checks that jose does not make: issued and signed in no later than now (five minutes of clock skew allowed). jose has already made sure iat is a number.
       const latest = Date.now() / 1000 + CLOCK_SKEW_SECONDS;
-      if ((payload.iat as number) > latest) throw new AuthError("invalid", "the token's iat is in the future");
+      if (typeof payload.iat !== "number" || payload.iat > latest) {
+        throw new AuthError("invalid", "the token's iat is missing, not a time, or in the future");
+      }
       const authTime = payload.auth_time;
       if (typeof authTime !== "number" || authTime > latest) {
         throw new AuthError("invalid", "the token's auth_time is missing, not a time, or in the future");
