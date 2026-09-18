@@ -8,7 +8,7 @@
 
 <p align="center"><b>Plain-language navigation for legal documents.</b></p>
 
-<p align="center">Upload an offer letter, a rent agreement or an NDA. ClauseCompass shows who it binds and to what, the dates and amounts in it, review prompts for the clauses that matter in your situation, and a packet to take to a lawyer or a free legal-aid service. Every statement it makes about the document points at the paragraph it came from.</p>
+<p align="center">Upload an offer letter, a rent agreement or an NDA. ClauseCompass shows who it binds and to what, the dates and amounts in it, review prompts for the clauses that matter in your situation, an answer to your own question from the document's wording (or a plain "the document does not answer this"), and a packet to take to a lawyer or a free legal-aid service. Every statement it makes about the document points at the paragraph it came from.</p>
 
 <p align="center">
   <a href="https://github.com/adityarajgupta154/ClauseCompass/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/adityarajgupta154/ClauseCompass/actions/workflows/ci.yml/badge.svg?branch=main"></a>
@@ -73,7 +73,7 @@ Three gaps, taken from the PRD:
 
 A chatbot answers whatever is typed, from its training data, in a voice that sounds like advice. ClauseCompass is built the other way round: **document → decision → handoff**.
 
-- **Document.** The uploaded text is the only source. It is split into paragraphs, and every statement the model writes about the document carries the id of the paragraph it came from and a quote copied from it. The interface resolves that id before it shows the statement; a statement whose source cannot be found is not shown. (Fixed interface text, the registry's "why it matters" notes and the comparison's summaries are product copy, not model output.)
+- **Document.** The uploaded text is the only source. It is split into paragraphs, and every statement the model writes about the document carries the id of the paragraph it came from and a quote copied from it. The interface resolves that id before it shows the statement; a statement whose source cannot be found is not shown. A question the reader types is answered the same way, from the paragraphs that share its words, or not at all: "The document does not answer this", with the question handed back to take to a professional. (Fixed interface text, the registry's "why it matters" notes and the comparison's summaries are product copy, not model output.)
 - **Decision.** What the product does next is decided by a deterministic flow, never by the model: the stage the user chose, a safety-cue scan of the one free-text answer (force or harm to a person ends the document flow and shows helplines), and a registry of 34 clause rules in five families (money, time, duty, exit & remedies, data & IP) that selects the paragraphs worth reviewing for that stage. The model's job is narrow: restate the selected paragraphs in plain language, in a format a validator checks before anything reaches the screen. Statements that judge, predict or advise are rejected and withheld.
 - **Handoff.** The output is a preparation packet: the map, the dates, the review prompts as questions to ask, a checklist of records to gather, the citations and the disclaimers, with the official services that fit the situation one link away. It is meant to be printed and carried to a human.
 
@@ -89,7 +89,7 @@ The first screen asks **"What brings you here today?"**. The choice decides two 
 The app's words for it: *"An offer letter, rent agreement, NDA or loan you have been asked to sign. See what the document says you would be agreeing to, and what to ask before you do."* For example: a first job offer, or an NDA a client has sent over.
 
 - **Family order inside each group:** duty → time → exit & remedies → money → data & IP.
-- **Path:** upload → one optional question → document map → review prompts → preparation packet, with the questions to ask.
+- **Path:** upload → one optional question → document map → review prompts → preparation packet, with the questions to ask. From the map or the prompts, **"Ask about this document"** takes a question of your own and comes back.
 - **Sample to try:** *Employment offer letter*, the one in the [walkthrough](#demo-walkthrough-priya) below.
 
 </details>
@@ -118,7 +118,7 @@ The app's words for it: *"An old and a new version of terms, a policy or a contr
 
 ## What it looks like
 
-Every picture below is the app as built, taken from the sample documents by [`scripts/docs/screenshots.mjs`](scripts/docs/screenshots.mjs). Everything in them is synthetic: the documents, every name, amount and date in them, and the reader signed in through the offline stand-in; the one real date is the day the packet was prepared. The map, prompt and packet sentences are the model's output from that run, so a re-run words them differently.
+Every picture below is the app as built, taken from the sample documents by [`scripts/docs/screenshots.mjs`](scripts/docs/screenshots.mjs). Everything in them is synthetic: the documents, every name, amount and date in them, and the reader signed in through the offline stand-in; the one real date is the day the packet was prepared. The map, prompt, answer and packet sentences are the model's output from that run, so a re-run words them differently.
 
 <table>
   <tr>
@@ -132,6 +132,10 @@ Every picture below is the app as built, taken from the sample documents by [`sc
   <tr>
     <td width="50%" valign="top"><img src="docs/screenshots/review.webp" alt="The review prompts screen: the group Check first opens with a duties-and-restrictions prompt about a non-compete clause, its source paragraph underneath."><br><sub><b>Your review prompts</b> · grouped into Check first, Also worth checking and Other clauses found by the rule's relevance at this stage; each prompt shows the clause and why it matters.</sub></td>
     <td width="50%" valign="top"><img src="docs/screenshots/packet.webp" alt="The preparation packet: a print-styled document headed Preparation packet, starting with what the document says and who is bound by it, and the print and download controls."><br><sub><b>Your preparation packet</b> · the map, the dates, the questions to ask, the records to gather and the citations, built in the browser; print, save as PDF or download as text.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/ask.webp" alt="The ask screen: under Your questions, the question What is the notice period during probation? answered under What the document states with one statement, its source open to clause 4.2, paragraph 19, and the exact wording from the document beneath it."><br><sub><b>Ask about this document</b> · a question in the reader's own words, answered only with statements that rest on the document's wording, each with its clause and the exact text one press away.</sub></td>
+    <td width="50%" valign="top"><img src="docs/screenshots/ask-not-answered.webp" alt="The same screen with a second question, Does the letter say anything about parental leave?, answered The document does not answer this, with the reason, the question repeated for a lawyer or a legal-aid service, and the link Official help you can contact."><br><sub><b>The document does not answer this</b> · a question the document does not settle is refused with the reason and handed back word for word to take to a professional; no guess.</sub></td>
   </tr>
 </table>
 
@@ -171,13 +175,13 @@ Every picture below is the app as built, taken from the sample documents by [`sc
 
 ## System architecture
 
-Two services and a set of shared libraries in one pnpm workspace. The browser holds the journey; the API holds the document text for the life of a session and nothing longer; the model sees only the paragraphs selected for one map field or one family of review rules at a time, under a per-call cap.
+Two services and a set of shared libraries in one pnpm workspace. The browser holds the journey; the API holds the document text for the life of a session and nothing longer; the model sees only the paragraphs selected for one map field, one family of review rules or one typed question at a time, under a per-call cap.
 
 ```mermaid
 flowchart TB
   subgraph browser["Browser · React 19 + Vite web client"]
     direction TB
-    ui["Screens<br/>welcome · sign-in · upload · interview<br/>document map · review prompts · compare<br/>packet · safety · official help"]
+    ui["Screens<br/>welcome · sign-in · upload · interview<br/>document map · review prompts · ask · compare<br/>packet · safety · official help"]
     journey["Journey state + decision flow<br/>stage, session id, escalation in sessionStorage<br/>safety cues scanned here, in the browser<br/>files held in memory only"]
     ground["Claim resolver + packet builder<br/>statement → its chunk → verbatim excerpt<br/>packet: print, save as PDF, text file"]
     resources["Resource registry<br/>bundled JSON, no API call"]
@@ -188,7 +192,7 @@ flowchart TB
     mw["Middleware<br/>request log → helmet → CORS (opt-in)<br/>→ per-client budgets → JSON ≤ 16 KiB<br/>→ requireUser: Firebase ID token, jose + JWKS"]
     gates["Admission gates<br/>32 uploads buffering<br/>2 extracting + 16 waiting<br/>4 analyses + 16 waiting<br/>8 model calls in flight"]
     store["Session store<br/>Map, at most 100 sessions<br/>sliding 30-minute TTL, sweeper<br/>chunks + prepared outputs<br/>never file bytes"]
-    analysis["Analysis<br/>evidence selection: 34 clause rules,<br/>date + party detectors, version alignment<br/>→ model call: forced tool call, strict JSON schema<br/>→ grounding validator: one retry, else withheld"]
+    analysis["Analysis<br/>evidence selection: 34 clause rules,<br/>date + party detectors, version alignment,<br/>BM25 over a typed question<br/>→ model call: forced tool call, strict JSON schema<br/>→ grounding validator: one retry, else withheld"]
     mw --> gates --> store --> analysis
   end
 
@@ -239,9 +243,9 @@ Eight steps across four runtimes, pictured screen by screen in [What it looks li
 2. **Validate and admit** (API, `POST /api/sessions`). The bearer token first: every document and session route verifies the reader's Firebase ID token on the server (signature against Google's published keys, project, expiry) and stores the reader's id with the session; a request for someone else's session answers 404, and a delete of it does nothing. Then file name, size (10 MB), and the kind claimed by the extension against the first bytes of the file. An admission gate bounds how many uploads buffer, extract and wait at once; beyond it the answer is 503, not a queue.
 3. **Extract** (a fresh worker thread per document, 30 s and 256 MB each). pdf.js for PDF, mammoth for DOCX. Caps: 30,000 words; for PDF also 50 pages. A PDF without a text layer (a scan) is refused with a message saying so.
 4. **Chunk and keep.** One chunk per paragraph, each with its page, paragraph number and clause label where one is printed ("4.2", "Schedule I"). Chunks are the only thing a statement may cite. The session store is in-process memory: text and prepared outputs only, never the uploaded bytes; at most 100 sessions; a sliding 30-minute TTL and a sweeper.
-5. **Select evidence** (deterministic, on demand, per screen). The rule registry picks paragraphs for the money, duties, termination and dispute fields and for the review prompts; a date detector builds the timeline; a party detector picks the paragraphs that name the parties. Comparison aligns the paragraphs of two versions and reports the differences by kind. No model is involved in this step.
-6. **Ask the model and validate.** For each map field or family of rules that has evidence, one call to Claude (`claude-haiku-4-5` by default) through a forced tool call with a strict JSON schema; the model sees only the selected paragraphs and a fixed policy. The validator checks that each cited chunk exists, that the quote appears in it verbatim, that the sentence is not an echo of the prompt's own instructions, and that it is in a plain, non-judging register; the location shown is taken from the verified chunk, never from the model. One retry with the validator's feedback; a statement that still fails is withheld and counted. Timeline, comparison and background prompts never call the model.
-7. **Render** (browser). Each statement is resolved to its chunk before it shows, with its paragraph (plus page and clause when known) and the verbatim excerpt one click away. Strings render as text, never as HTML. The interface is available in English and Hinglish, with text-size and light/dark theme settings and browser read-aloud.
+5. **Select evidence** (deterministic, on demand, per screen). The rule registry picks paragraphs for the money, duties, termination and dispute fields and for the review prompts; a date detector builds the timeline; a party detector picks the paragraphs that name the parties. Comparison aligns the paragraphs of two versions and reports the differences by kind. For a question the reader types, BM25 retrieval over the question's words (with a lay and Hinglish synonym table) picks at most five paragraphs; a question that shares no word with the document is answered "The document does not answer this" here, before any model call. No model is involved in this step.
+6. **Ask the model and validate.** For each map field, family of rules or typed question that has evidence, one call to Claude (`claude-haiku-4-5` by default) through a forced tool call with a strict JSON schema; the model sees only the selected paragraphs and a fixed policy. The validator checks that each cited chunk exists, that the quote appears in it verbatim, that the sentence is not an echo of the prompt's own instructions, and that it is in a plain, non-judging register; the location shown is taken from the verified chunk, never from the model. One retry with the validator's feedback; a statement that still fails is withheld and counted. Timeline, comparison and background prompts never call the model.
+7. **Render** (browser). Each statement is resolved to its chunk before it shows, with its paragraph (plus page and clause when known) and the verbatim excerpt one click away; an answer to a typed question is shown the same way, and a refusal names its reason and hands the question back. Strings render as text, never as HTML. The interface is available in English and Hinglish, with text-size and light/dark theme settings and browser read-aloud.
 8. **Export or delete.** The packet is built in the browser from the map and review results and printed (or saved as PDF) or downloaded as a text file; there is no export API. "Delete my document now" calls `DELETE /api/sessions/:id`, which drops the text and aborts any model call still running; otherwise the TTL does the same.
 
 ### One session, end to end
@@ -281,6 +285,14 @@ sequenceDiagram
   API-->>R: map + timeline · every location taken from the chunk, not the model
   R->>API: POST /api/sessions/:id/review-prompts
   API-->>R: prompts by relevance · withheld count
+  opt the reader asks a question of their own
+    R->>R: question scanned for safety cues, like the interview answer
+    R->>API: POST /api/sessions/:id/ask { question, style }
+    API->>API: BM25 over the question's words picks at most five paragraphs · none → refused, no call
+    API->>M: forced tool call · fixed policy + the question as data + those paragraphs
+    M-->>API: claims, validated the same way · nothing left → refused
+    API-->>R: answer, or "The document does not answer this" with the question handed back · nothing stored
+  end
   R->>R: packet built locally · print, save as PDF or download as text
   R->>API: DELETE /api/sessions/:id
   API->>API: drop the text · abort any model call still running
@@ -314,6 +326,9 @@ flowchart TD
   scan -->|no| map["Your document map<br/>six fields + Dates in this document<br/>POST /api/sessions/:id/document-map"]
   interview -.->|"compare stage: Or go straight to what changed between the versions"| compare
   map --> review["Your review prompts<br/>Check first · Also worth checking · Other clauses found<br/>POST /api/sessions/:id/review-prompts"]
+  map -.->|"Ask about this document"| ask["Ask about this document<br/>one question at a time, safety cues scanned first<br/>POST /api/sessions/:id/ask · nothing stored"]
+  review -.-> ask
+  ask -.->|"Back to the document map"| map
   review -->|"compare stage"| compare["What changed between the versions<br/>POST /api/sessions/:id/compare · no model call"]
   review -->|"other stages"| packet
   compare --> packet["Your preparation packet<br/>built in the browser<br/>Print or save as PDF · Download as a text file"]
@@ -354,8 +369,8 @@ stateDiagram-v2
 ```mermaid
 flowchart TD
   chunks[("Paragraph chunks<br/>id · text · page · paragraph · clause label")] --> select
-  select["Select evidence for one field or rule family<br/>34 clause rules in five families<br/>at most 6 chunks / 7,000 characters per map field<br/>8 chunks / 10,000 characters per review batch"] --> any{"Any evidence?"}
-  any -->|no| notfound["Not found in this document<br/>no model call"]
+  select["Select evidence for one field, rule family or question<br/>34 clause rules in five families; BM25 for a question<br/>at most 6 chunks / 7,000 characters per map field<br/>8 chunks / 10,000 characters per review batch · 5 chunks per question"] --> any{"Any evidence?"}
+  any -->|no| notfound["Not found in this document<br/>(a question: The document does not answer this)<br/>no model call"]
   any -->|yes| prompt["Prompt = fixed policy + the selected paragraphs, marked as data"]
   prompt --> modelcall["Anthropic Messages API<br/>forced tool call · strict JSON schema<br/>30 s timeout · at most 8 calls in flight"]
   modelcall -->|"unreachable, timeout, error"| degraded["Field falls back to the document's own words<br/>reason: model-unavailable · not cached, retried on the next request"]
@@ -415,7 +430,7 @@ The store holds at most 100 sessions; a session belongs to the uid that opened i
 The contract is [`lib/api-spec/openapi.yaml`](lib/api-spec/openapi.yaml); the server validates every successful response against the Zod schemas generated from it, and the client's hooks and types are generated from the same file. All routes are under `/api`. Unless marked open, a route needs `Authorization: Bearer <Firebase ID token>`.
 
 <details>
-<summary>The nine routes</summary>
+<summary>The ten routes</summary>
 
 | Method and path | Purpose | Answers |
 | --- | --- | --- |
@@ -427,6 +442,7 @@ The contract is [`lib/api-spec/openapi.yaml`](lib/api-spec/openapi.yaml); the se
 | `POST /sessions/:id/document-map` | Six fields with grounded claims, evidence ids and withheld counts, plus the timeline | `200` |
 | `POST /sessions/:id/review-prompts` | One prompt per rule that fired, phrased by the model or by the registry template, grouped by relevance to the stage; rules that lead the stage but matched nothing under `notFound` | `200` |
 | `POST /sessions/:id/compare` | Aligned paragraphs of the two versions with each difference classified (`money`, `time`, `duty`, `remedy`, `wording`; `changed`, `added`, `removed`); no model call | `200` |
+| `POST /sessions/:id/ask` | JSON `{ question, style }` (`brief` or `full`): the question answered from the paragraphs that share its words (at most five, chosen by BM25), each claim quote-verified, or `status: "not-in-document"` with a `reason` (`no-evidence`, `nothing-verified`, `low-confidence`) and the question handed back as `suggestedQuestion`; the passages read are returned so the client can resolve the citations; nothing is stored or logged. A model failure is `503`, not a guess | `200` |
 | `POST /documents/extract` | Stateless extraction of one file; built and tested, not used by the client | `200` paragraphs |
 
 </details>
@@ -444,7 +460,7 @@ Errors are always `{ error: { code, message } }` with a stable code and a messag
 │   ├── clausecompass/          React 19 + Vite web client
 │   │   └── src/
 │   │       ├── pages/          welcome, sign-in, upload, interview, document-map, review-prompts,
-│   │       │                   compare, packet, safety, official-help, not-found
+│   │       │                   ask, compare, packet, safety, official-help, not-found
 │   │       ├── features/       auth, journey (state, copy in English and Hinglish), document (pre-checks,
 │   │       │                   samples), analysis (query hooks), grounding (claim resolver, source card),
 │   │       │                   packet, safety, resources, display (language, text size, theme), speech, seo
@@ -457,7 +473,7 @@ Errors are always `{ error: { code, message } }` with a stable code and a messag
 │           ├── uploads/        multipart handling, file-name rules
 │           ├── extraction/     worker isolation, sniffing, limits, pdf / docx / txt, paragraphs
 │           ├── sessions/       the store contract, the memory and Redis stores, sealing, the in-flight registry
-│           ├── analysis/       chunks, document map, dates, parties, review prompts, compare/
+│           ├── analysis/       chunks, document map, dates, parties, review prompts, ask, compare/
 │           ├── llm/            prompt, claims, Anthropic adapter, concurrency, offline stand-in
 │           └── lib/            config (validated at boot), logger, URL redaction
 ├── lib/
@@ -493,7 +509,7 @@ Package boundaries: `lib/rules`, `lib/grounding` and `lib/resources` are pure Ty
 - **Language.** English and Hinglish are available for the interface copy. Document excerpts, the model's statements and the packet stay in English. Read-aloud uses the browser's own `en-IN` voice, so its quality depends on the device.
 - **Sessions.** No resume after a page reload (the session id is kept, but the browser deletes the orphaned session and asks for the file again). Sessions expire 30 minutes after their last use. The default store is the API process's memory, for one server; a host that runs several instances needs `SESSION_STORE=redis` and a Redis database of the API's own ([docs/deployment.md](docs/deployment.md)).
 - **Model dependence.** The plain-language statements in the map and review prompts need the Anthropic Messages API. If it is unreachable, the map shows the located passages in the document's own words and the review prompts fall back to the registry's wording, each saying why; nothing is invented, and the server does not keep that output, so the next request for it tries again. Everything else (timeline, comparison, safety flow, helplines) works without it.
-- **No free-text question answering.** Retrieval is rule-driven; there is no "ask anything about this document" box. A BM25 retriever exists in `lib/grounding` but nothing uses it yet.
+- **Questions are answered from the document or not at all.** "Ask about this document" is not a chatbot: the question is scanned for safety cues in the browser, sent to the server as data, matched to at most five paragraphs by BM25 retrieval, and answered only with quote-verified statements from them. A question the document does not settle gets "The document does not answer this" and the question handed back for a professional; when the model is unreachable the screen says the question could not be answered and offers to ask again, rather than falling back to anything. No question is stored, and the thread lives in the browser tab only.
 - **Sign-in is identity, not persistence.** The account says whose session it is; it does not keep documents between visits, and the server decodes the ID token only to check it and keeps nothing about the reader but the uid. Sign-in needs the Firebase project's sign-in providers enabled and the serving domain in its authorized-domains list.
 - **Per-process limits.** The per-client request budgets, the analysis gate, the model-call cap and the sharing of one analysis between concurrent requests all live in the server process; with several instances each has its own budgets, and only the sessions are shared (through the Redis store). Budgets are charged per client address, and which address that is depends on `TRUST_PROXY`: by default the socket's peer (forged forwarding headers are ignored, but every reader behind one proxy shares one budget); set to a hop count or, behind an edge proxy that rewrites the header, `true`, the forwarded address. Readers behind one shared address share one budget either way.
 
@@ -521,7 +537,7 @@ The tests and the accessibility run never touch Firebase or Anthropic: they use 
 AUTH_PROVIDER=mock LLM_PROVIDER=mock VITE_AUTH_PROVIDER=mock pnpm dev
 ```
 
-**"Continue with Google"** then signs in a fictional reader at once, and the map and review prompts carry the stand-in model's placeholder sentences (each begins "Demo output (mock model, not analysis)") instead of restatements of the document; the rest (the rules, the dates, the comparison, the safety flow, the packet, the helplines) does not involve the model and runs unchanged. To see the model's real output without a Firebase project, set only `AUTH_PROVIDER=mock VITE_AUTH_PROVIDER=mock` and keep the Anthropic key in `.env`.
+**"Continue with Google"** then signs in a fictional reader at once, and the map, the review prompts and the answers to questions carry the stand-in model's placeholder sentences (each begins "Demo output (mock model, not analysis)") instead of restatements of the document; the rest (the rules, the dates, the comparison, the safety flow, the packet, the helplines) does not involve the model and runs unchanged. To see the model's real output without a Firebase project, set only `AUTH_PROVIDER=mock VITE_AUTH_PROVIDER=mock` and keep the Anthropic key in `.env`.
 
 ### Firebase
 
@@ -576,8 +592,9 @@ Sample documents live in [`samples/`](samples/) and are synthetic: every company
 3. **"Next: a few quick questions"** asks one optional question about her situation. Priya can leave it empty and press **"Continue to the document map"**. (Whatever is typed here is scanned for safety cues in the browser and is never sent to the server. To see the safety path, use one of the answers under **"Try a sample answer"**; the app shows **"Your safety comes first"** with the helplines and the only way on is **"Start again from the beginning"**.)
 4. **"Your document map"** shows six fields: **"Who is bound by it"**, **"How long it lasts"**, **"Money"**, **"Duties and restrictions"**, **"How it can end"**, **"If there is a dispute"**, then **"Dates in this document"**, the timeline. Open a statement's source: the paragraph is quoted verbatim with its location. Switch **"Language"** to **"Hinglish"** and back, and try **"Larger text"**, on any screen.
 5. **"Continue to the review prompts"**. **"Your review prompts"** are grouped into **"Check first"**, **"Also worth checking"** and **"Other clauses found"**. For this letter they include the training bond, the 60-day notice period and the non-compete, each with the clause it came from and why it matters before signing.
-6. **"Continue to your preparation packet"**. **"Your preparation packet"** collects the summary, the dates, the questions to ask, the records to gather and the citations, with the official-help page linked below it. **"Print or save as PDF"** or **"Download as a text file"**.
-7. Press **"Delete my document now"** in the footer. The session is gone from the server and the app returns to the start.
+6. **"Ask about this document"** (a link on the map and on the prompts). Type a question, in English or Hinglish, or press one of the four offered: *"What is the notice period during probation?"* comes back as **"What the document states"**, one to three statements each with its clause and the exact wording one press away; *"Does the letter say anything about parental leave?"* comes back as **"The document does not answer this"**, with why, and the question handed back word for word to take to a lawyer or a legal-aid service. Whatever is typed is scanned for safety cues in the browser first, like the interview answer; nothing typed here is stored. **"Back to the document map"**, then on to the prompts again.
+7. **"Continue to your preparation packet"**. **"Your preparation packet"** collects the summary, the dates, the questions to ask, the records to gather and the citations, with the official-help page linked below it. **"Print or save as PDF"** or **"Download as a text file"**.
+8. Press **"Delete my document now"** in the footer. The session is gone from the server and the app returns to the start.
 
 Second beat, comparison: choose **"Compare two versions"** on the first screen, load *Leave and licence (rent) agreement* into the **"Older version"** slot and *Leave and licence agreement, revised draft* into **"Newer version"** using the same sample buttons, continue, and **"What changed between the versions"** lists what changed between the drafts (a higher late fee, two months' notice instead of one, deposit forfeiture, new pets and parking clauses, one clause dropped), each side quoted. Comparison is deterministic and makes no model call; from the interview screen, **"Or go straight to what changed between the versions"** skips the map and prompts.
 
@@ -591,20 +608,24 @@ One command, offline, no browser, no API key:
 pnpm test
 ```
 
-Last run on 18 September 2026: 80 files, 989 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
+Last run on 18 September 2026: 83 files, 1,036 tests, all passing in about 50 s, reported by layer as PRD §12 asks:
 
 | Layer | What it proves |
 | --- | --- |
-| Golden documents (7 files, 69 tests) | Exact clause hits, dates and escalation states for the three synthetic documents and the two-version pair; the whole pipeline over HTTP against the mock model. |
-| Adversarial (9 files, 105 tests) | Prompt injection inside documents, XSS payloads, hostile files (zip bombs, wrong magic bytes, path-like names), safety-escalation routing, route guards (a signed-out or step-skipping reader is redirected, a foreign `next` address is refused), a second reader on the same browser, a double-pressed sign-in: the policy does not change, no unsourced statement or verdict is rendered, nothing leaks across readers, nothing crashes. |
+| Golden documents (8 files, 78 tests) | Exact clause hits, dates and escalation states for the three synthetic documents and the two-version pair; the whole pipeline over HTTP against the mock model; the golden questions, answered from the right clause or refused. |
+| Adversarial (10 files, 119 tests) | Prompt injection inside documents, XSS payloads, hostile files (zip bombs, wrong magic bytes, path-like names), safety-escalation routing, route guards (a signed-out or step-skipping reader is redirected, a foreign `next` address is refused), a second reader on the same browser, a double-pressed sign-in, the ask screen (a question with a safety cue never leaves the browser, a statement citing a passage the API did not send is withheld, a model outage is reported and can be retried, a lost session leads back to the upload): the policy does not change, no unsourced statement or verdict is rendered, nothing leaks across readers, nothing crashes. |
 | Accessibility (6 files, 34 tests) | Route focus and document titles, the header's settings menu (language, text size, theme, open/close from the keyboard), the loading state of a slow screen, the sign-in screen, read-aloud reading order (DOM-level). |
 | Schema (6 files, 63 tests) | Malformed model output, unknown chunk ids, missing or altered quotes, verdict wording, the model-call cap: the validator rejects and the request degrades, never throws. |
-| Integration (14 files, 171 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process, one instance over the REST API and one over the socket) and the health check reporting it, packet export, simulated API errors: nothing leaks file contents or secrets. |
-| Unit (38 files, 547 tests) | Rule matching for every family, date parsing, clause alignment, decision-flow transitions, language lint, resource registry, the session-store contract against both stores over each Redis transport, the socket client and its wire framing, and the sealing of stored values, the client's file check and sample loader. |
+| Integration (14 files, 179 tests) | Uploads and extraction for PDF, DOCX and TXT, admission gate, per-client budgets, response headers, session lifetime and delete, two API instances sharing one Redis store (a stand-in database in the test process, one instance over the REST API and one over the socket) and the health check reporting it, packet export, simulated API errors: nothing leaks file contents or secrets. |
+| Unit (39 files, 563 tests) | Rule matching for every family, date parsing, clause alignment, question answering (passage selection, the answer's validation, the refusal reasons), decision-flow transitions, language lint, resource registry, the session-store contract against both stores over each Redis transport, the socket client and its wire framing, and the sealing of stored values, the client's file check and sample loader. |
 
 `pnpm test:coverage` runs the same suite under V8 coverage over the product code (both services and the libraries; tests, test helpers and the offline stand-ins excluded) and writes an HTML report to `coverage/`. On 17 September 2026: 86.9% of statements, 79.2% of branches, 88.4% of lines. No threshold is enforced; the per-layer table is the gate, the coverage report is where to look for what it does not reach.
 
 Details, including how to run one layer, are in [tests/README.md](tests/README.md).
+
+### Question answering
+
+The golden questions in [`tests/golden/questions.ts`](tests/golden/questions.ts) are what a tenant, a candidate and a receiving party would ask about the three synthetic documents, each paired with the clause that answers it, plus questions the documents do not settle (some sharing no word with the document, some on its subject but unanswered by it). Three checks read the one table: the retrieval golden test pins that the answering clause ranks in the top three paragraphs; the pipeline golden test pins, against the offline stand-in, that the answer is built from that clause and that a question sharing no word with the document is refused before any model call; and `pnpm eval:ask` runs the same questions against the configured model and prints every answer, failing when fewer than 80% are answered from the right clause or fewer than 70% of the unsettled ones are refused. Last live run on 18 September 2026 with `claude-haiku-4-5`: 25 of 27 answered from the right clause, 8 of 9 unsettled questions refused; the one answered was *"kya yeh agreement court mein valid hai"*, met with the governing-law clause quoted, which is a statement of what the document says and not a verdict, and the two misses were refusals, not wrong answers. The floors sit below 100% on purpose: the model is not deterministic, and a single miss is worth reading rather than failing on. What the validator checks is mechanical, the quote in the passage it cites, the register and the confidence; whether a statement says more than its quote is not something it can judge, which is why the quote is shown beside every statement and why the eval prints each answer for a person to read.
 
 ### Accessibility
 
@@ -670,7 +691,7 @@ For each map field or rule family that has evidence, it sees a fixed policy and 
 <details>
 <summary><b>What happens when the model is unreachable?</b></summary>
 
-The map shows the passages it located in the document's own words under "Shown in the document's own words" and says why; the review prompts fall back to the registry's wording for each clause and say so. Nothing is invented, and that output is not kept, so the next request tries again. The timeline, the comparison, the safety flow and the helplines never needed the model.
+The map shows the passages it located in the document's own words under "Shown in the document's own words" and says why; the review prompts fall back to the registry's wording for each clause and say so; a question gets "The question could not be answered" with an "Ask again" control, never a guess. Nothing is invented, and that output is not kept, so the next request tries again. The timeline, the comparison, the safety flow and the helplines never needed the model.
 
 </details>
 

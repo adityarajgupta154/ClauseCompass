@@ -5,7 +5,7 @@ Ye file `docs/design.md` ka copy-paste roop hai: har screen ke liye ek self-cont
 Kaise use karein:
 
 1. **Block 0 hamesha pehle paste karo** (ya tool ke "project instructions" / system prompt mein ek baar daal do). Ismein tokens, fonts, shared components aur rules hain.
-2. Phir **ek baar mein ek screen ka block** paste karo (Block 1–10). Har block mein layout order, exact classes, exact copy aur states hain.
+2. Phir **ek baar mein ek screen ka block** paste karo (Block 1–10, Block 6a Ask screen ke liye). Har block mein layout order, exact classes, exact copy aur states hain.
 3. Copy strings **verbatim** rakhein; naye sentences mat likhwao. Copy ka source `artifacts/clausecompass/src/features/journey/copy.en.ts` hai.
 4. Screen ban jaane ke baad **Block 11 (checklist)** paste karke verify karwao.
 
@@ -395,6 +395,36 @@ Status region: analysing card "Reading {file name} and preparing the review prom
   7. Continue link: "Continue to what changed" → /compare in the compare stage, otherwise "Continue to your preparation packet" → /packet.
 
 States to build: analysing · failure · ready with three groups · a standard-check card · a card with 4+ places (toggle) · an expanded paragraph · withheld note · not-found grid · empty state.
+```
+
+---
+
+## Block 6a — Ask about this document (`/ask`)
+
+```text
+SCREEN 6a — ASK ABOUT THIS DOCUMENT. Route "/ask". Page frame as the analysis screens (main mx-auto w-full max-w-3xl flex-1 space-y-12 px-6 py-12 md:py-16). An aside: reached from the outline link "Ask about this document" (MessageCircleQuestion h-5 w-5; inline-flex min-h-[56px] items-center gap-3 rounded-2xl border-2 border-primary bg-card px-6 text-lg font-semibold text-primary transition-colors hover:bg-primary/10) that sits before the continue link on the map, review and compare screens.
+
+Entry guards as Block 5. Header back link: "Back to the document map" → /map.
+Heading block space-y-5: h1 "Ask about this document"; lead "Type a question in English or Hinglish. ClauseCompass answers with what the document itself states, each statement resting on the exact wording, or says that the document does not answer it. It does not guess, and it does not say what to do."; document line flex items-center gap-3 text-base text-muted-foreground with FileQuestion h-5 w-5 shrink-0 text-primary and the file name (min-w-0 truncate font-medium text-foreground).
+
+Question form (<form noValidate class="space-y-8">) holding one surface card (rounded-3xl border border-border/80 bg-card p-6 shadow-sm md:p-8, space-y-5), a <section> labelled by its own <label>:
+  1. <label> "Your question" in the card-title role (font-serif text-2xl font-medium text-foreground md:text-3xl), for the textarea.
+  2. Hint (max-w-prose text-base leading-relaxed text-muted-foreground, wired by aria-describedby): "Up to 500 characters. Your words are read here in your browser first (a mention of harm to a person brings up official help), then sent to the AI model together with the paragraphs of the document that share their words, and nothing else. Your question is not kept once the answer is back; the document itself stays in your session until it ends, as the upload screen states."
+  3. <textarea rows="3" maxLength="500" autoComplete="off"> block w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg leading-relaxed text-foreground transition-colors hover:border-primary/40 + focus ring.
+  4. Action row flex flex-wrap items-center gap-4: submit button "Ask" (inline-flex min-h-[56px] items-center gap-3 rounded-2xl bg-primary px-8 text-lg font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60; Send h-5 w-5; disabled and aria-disabled while the field is empty or a question is in flight) and the counter "{n}/500" (text-sm text-muted-foreground).
+  5. Sample questions under a border-t border-border/60 pt-6 rule: h2 "Or try one of these" (text-base font-semibold text-foreground); <ul class="flex flex-wrap gap-2"> of chips (inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-border bg-background px-4 text-left text-base font-medium text-foreground transition-colors [overflow-wrap:anywhere] hover:border-primary/60 hover:bg-primary/5; MessageSquareText h-4 w-4 text-primary; aria-label "Ask this question: {sample}"): "What is the notice period?" · "When is the deposit returned?" · "Which court handles disputes?" · "Can I work for a competitor after leaving?". A chip fills the textarea and focuses it; a polite live line (sr-only until a chip is used, then text-base font-medium text-foreground) repeats the chosen question.
+
+Thread section (space-y-6, aria-labelledby its h2): h2 "Your questions" (text-sm font-bold uppercase tracking-widest text-muted-foreground); note (max-w-prose text-base leading-relaxed text-muted-foreground) "Each question is answered on its own from the document. The questions and answers stay in this browser while this screen is open, and nowhere else."; <ol aria-live="polite" class="space-y-8"> of exchange cards, one per question asked on this visit, newest last; component state only, so a refresh empties it.
+
+Exchange card = <li> surface card + space-y-6, aria-labelledby its question: eyebrow "You asked" (text-sm font-bold uppercase tracking-widest text-muted-foreground); the question (font-serif text-2xl font-medium text-foreground [overflow-wrap:anywhere]); then one body:
+  • asking — flex items-center gap-4 rounded-2xl border border-primary/20 bg-background p-5; LoaderCircle h-8 w-8 shrink-0 animate-spin text-primary motion-reduce:animate-none; "Reading the document for an answer. This usually takes a few seconds." (text-lg text-foreground).
+  • failed — role="alert" space-y-5 rounded-2xl border-2 border-destructive/30 bg-destructive/[0.02] p-5; AlertCircle mt-1 h-6 w-6 shrink-0 text-destructive; title "The question could not be answered" (text-xl font-medium text-foreground); the API's own sentence (text-lg text-foreground/80); then the button "Ask again" (inline-flex min-h-[48px] items-center gap-2 rounded-2xl border-2 border-primary bg-card px-6 text-base font-semibold text-primary transition-colors hover:bg-primary/10; RotateCcw h-5 w-5) — or, when the session is gone, the "Upload the document again" link instead.
+  • answered — header row flex flex-wrap items-center justify-between gap-4: h3 "What the document states" (text-xl font-semibold text-foreground) and the read-aloud button "Read the answer aloud"; in the brief style a note (max-w-prose text-base leading-relaxed text-muted-foreground) "One statement, because your deadline is close: the one the document supports best."; <ul class="space-y-4"> of source cards, one per statement, the first open; when statements were dropped, "1 further statement was withheld because it could not be verified against the document's wording." / "{n} further statements were withheld because they could not be verified against the document's wording."
+  • not in document — h3 "The document does not answer this" (text-xl font-semibold text-foreground); one reason (max-w-prose text-lg leading-relaxed text-foreground/80): "No paragraph of the document shares the words of your question, so nothing was sent to the AI model." / "The paragraphs that share its words were read, and no statement about them could be verified against the document's own wording." / "The paragraphs that share its words were read, and the only statements found were weakly supported, so none is shown."; then a panel space-y-3 rounded-2xl border border-border/80 bg-background p-5: "The question, as it stands, for a lawyer or a legal-aid service:" (text-base font-semibold text-foreground), the question as <blockquote class="border-l-4 border-primary/40 pl-4 font-serif text-xl text-foreground [overflow-wrap:anywhere]">, and the link "Official help you can contact" (inline-flex min-h-[44px] items-center text-base font-semibold text-primary underline-offset-4 hover:underline) to /help for legal advice.
+
+Behaviour: submit runs the words through the decision flow first (a safety cue replaces this screen with /safety, no request sent); one question in flight at a time; after a submit the field clears and keeps focus; answers are in English under both language settings; nothing typed here is stored anywhere.
+
+States to build: empty (no questions yet) · asking · answered with three statements · answered brief with one statement and the note · a withheld line · not in document, each of the three reasons · failed with "Ask again" · failed with the session gone.
 ```
 
 ---

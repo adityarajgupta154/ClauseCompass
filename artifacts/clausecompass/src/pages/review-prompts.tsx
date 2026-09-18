@@ -44,9 +44,9 @@ function ReviewPromptsScreen({ file, stage, sessionId }: { file: File; stage: St
         <>
           <ReviewBody data={data} />
           {stage === "compare-versions" ? (
-            <ContinueLink href="/compare" label={words.continueToCompare} testId="link-continue-to-compare" />
+            <ContinueLink href="/compare" label={words.continueToCompare} testId="link-continue-to-compare" secondary={{ href: "/ask", label: copy.ask.link, testId: "link-ask-document" }} />
           ) : (
-            <ContinueLink href="/packet" label={words.continueToPacket} testId="link-continue-to-packet" />
+            <ContinueLink href="/packet" label={words.continueToPacket} testId="link-continue-to-packet" secondary={{ href: "/ask", label: copy.ask.link, testId: "link-ask-document" }} />
           )}
         </>
       )}

@@ -23,3 +23,4 @@
 - [Auth](auth.md) — journey-only gate, jose over firebase-admin, 404 for foreign sessions, paired mocks; sign-in screen: mechanism-not-guarantee copy, ref busy lock, mode-titled tab.
 - [Lighthouse, SEO head & loading](lighthouse-seo-loading.md) — measure prod builds not the dev proxy; Suspense throttle + hidden old screen; rules/zod eager on purpose; preview server is the prod edge.
 - [API hardening](api-hardening.md) — budgets off in test helpers; TRUST_PROXY default false (Replit edge rewrites XFF, verified); closed CORS → happy-dom setURL; preflight order; audit job; coverage excludes.
+- [Ask about this document](ask-qa.md) — grounded Q&A not chat; no "never a guess" wording; questions run unshared under the session signal; cap on typed words; never git stash here.

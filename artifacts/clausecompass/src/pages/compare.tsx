@@ -40,7 +40,7 @@ function CompareScreen({ older, newer, sessionId }: { older: File; newer: File; 
       {(data) => (
         <>
           <CompareBody data={data} />
-          <ContinueLink href="/packet" label={words.continueToPacket} testId="link-continue-to-packet" />
+          <ContinueLink href="/packet" label={words.continueToPacket} testId="link-continue-to-packet" secondary={{ href: "/ask", label: copy.ask.link, testId: "link-ask-document" }} />
         </>
       )}
     </AnalysisScreen>

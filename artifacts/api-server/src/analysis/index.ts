@@ -6,6 +6,23 @@ import { buildTimeline, type TimelineItem } from "./dates";
 import { buildDocumentMap, type BuildMapOptions, type DocumentMap } from "./document-map";
 import { buildReviewPrompts, type BuildReviewPromptsOptions, type ReviewPrompts } from "./review-prompts";
 
+export {
+  ANSWER_CATEGORY,
+  ASK_TASK,
+  askDocument,
+  CLAIMS_BY_STYLE,
+  keepConfident,
+  MAX_ASK_CHARS,
+  MAX_ASK_PASSAGES,
+  MAX_QUESTION_CHARS,
+  passageOf,
+  QuestionTooLongError,
+  selectPassages,
+  type Answer,
+  type AskOptions,
+  type AskStatus,
+  type NoAnswerReason,
+} from "./ask";
 export { chunkId, toSourceChunks } from "./chunks";
 export {
   AlignmentTooLargeError,

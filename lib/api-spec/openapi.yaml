@@ -359,6 +359,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /sessions/{sessionId}/ask:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: askDocument
+      tags: [analysis]
+      summary: Answer one question from the session's document
+      description: >-
+        Answers the reader's question from the session's document (the newer
+        version for a comparison) or says that the document does not answer
+        it. The paragraphs that share the question's words are retrieved (a
+        handful at most, returned as `passages`) and are the only text the
+        model reads; the answer is one to three statements of what those
+        passages say, each quoting a passage word for word, kept only when
+        the validator finds the quote in the passage it cites and the
+        statement is confident and in a factual register. The check is on
+        the quote, which is shown with the statement so the reader can see
+        what it rests on; whether the statement says more than its quote is
+        for the reader to judge from that quote. No passage, nothing
+        verified, or only weakly supported statements is `not-in-document`,
+        with the reader's question handed back to take to a lawyer or a
+        legal-aid service. Each question is one model call, plus one retry
+        when the first reply fails validation; nothing about it is kept on
+        the server, so the same question asked again runs again, and a
+        question in flight when the session is deleted ends as 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Question"
+      responses:
+        "200":
+          description: The answer, or the statement that the document does not answer the question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskResponse"
+        "400":
+          description: No question, or one longer than 500 characters (`bad-question`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No sign-in token, or one this server does not accept (`auth-required`, `auth-invalid`); sign in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such session (deleted, expired, or never opened)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The model could not be reached (`model-unavailable`), with `Retry-After`; nothing was answered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -887,6 +949,65 @@ components:
               type: integer
             wording:
               type: integer
+    AnswerStyle:
+      type: string
+      enum: [brief, full]
+      description: From the decision flow run in the browser - `brief` under a close deadline (one statement), `full` otherwise (up to three)
+    Question:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: The reader's question in their own words, English or Hinglish; sent to the model as quoted data, never as an instruction
+        style:
+          $ref: "#/components/schemas/AnswerStyle"
+    AskStatus:
+      type: string
+      enum: [answered, not-in-document]
+    NoAnswerReason:
+      type: string
+      enum: [no-evidence, low-confidence, nothing-verified]
+      description: >-
+        `no-evidence` - no paragraph shares a word with the question, so nothing was read and no model call was made;
+        `nothing-verified` - passages were read but no statement about them survived the validator;
+        `low-confidence` - the statements that survived rested too weakly on their quotes to show
+    AskResponse:
+      type: object
+      required: [document, status, reason, suggestedQuestion, style, claims, passages, withheld]
+      properties:
+        document:
+          $ref: "#/components/schemas/AnalysedDocument"
+        status:
+          $ref: "#/components/schemas/AskStatus"
+        reason:
+          oneOf:
+            - $ref: "#/components/schemas/NoAnswerReason"
+            - type: "null"
+          description: Set when `status` is `not-in-document`
+        suggestedQuestion:
+          type: ["string", "null"]
+          description: The reader's question tidied, to take to a professional; set when `status` is `not-in-document`
+        style:
+          $ref: "#/components/schemas/AnswerStyle"
+        claims:
+          type: array
+          maxItems: 3
+          description: The answer - statements of what the passages say, each with its quote; empty unless `answered`
+          items:
+            $ref: "#/components/schemas/GroundedClaim"
+        passages:
+          type: array
+          maxItems: 5
+          description: The paragraphs read for the question, in document order - the only text the model saw and the targets of every citation
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        withheld:
+          type: integer
+          minimum: 0
+          description: Model statements not shown - withheld by the validator, below the confidence floor, or failing the language check
     ErrorDetail:
       type: object
       required: [code, message]

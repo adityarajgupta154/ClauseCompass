@@ -33,6 +33,7 @@ export const screens = {
   review: screen(() => import("@/pages/review-prompts")),
   compare: screen(() => import("@/pages/compare")),
   packet: screen(() => import("@/pages/packet")),
+  ask: screen(() => import("@/pages/ask")),
   help: screen(() => import("@/pages/official-help")),
   signIn: screen(() => import("@/pages/sign-in")),
 } satisfies Record<string, Screen>;

@@ -385,3 +385,68 @@ export const PrepareComparisonResponse = zod.object({
 })
 
 
+/**
+ * Answers the reader's question from the session's document (the newer version for a comparison) or says that the document does not answer it. The paragraphs that share the question's words are retrieved (a handful at most, returned as `passages`) and are the only text the model reads; the answer is one to three statements of what those passages say, each quoting a passage word for word, kept only when the validator finds the quote in the passage it cites and the statement is confident and in a factual register. The check is on the quote, which is shown with the statement so the reader can see what it rests on; whether the statement says more than its quote is for the reader to judge from that quote. No passage, nothing verified, or only weakly supported statements is `not-in-document`, with the reader's question handed back to take to a lawyer or a legal-aid service. Each question is one model call, plus one retry when the first reply fails validation; nothing about it is kept on the server, so the same question asked again runs again, and a question in flight when the session is deleted ends as 404.
+ * @summary Answer one question from the session's document
+ */
+export const AskDocumentParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const askDocumentBodyQuestionMax = 500;
+
+
+
+export const AskDocumentBody = zod.object({
+  "question": zod.string().min(1).max(askDocumentBodyQuestionMax).describe('The reader\'s question in their own words, English or Hinglish; sent to the model as quoted data, never as an instruction'),
+  "style": zod.enum(['brief', 'full']).optional().describe('From the decision flow run in the browser - `brief` under a close deadline (one statement), `full` otherwise (up to three)')
+})
+
+
+export const askDocumentResponseClaimsItemConfidenceMin = 0;
+export const askDocumentResponseClaimsItemConfidenceMax = 1;
+
+export const askDocumentResponseClaimsMax = 3;
+
+export const askDocumentResponsePassagesMax = 5;
+
+export const askDocumentResponseWithheldMin = 0;
+
+
+
+export const AskDocumentResponse = zod.object({
+  "document": zod.object({
+  "kind": zod.enum(['pdf', 'docx', 'txt']),
+  "pageCount": zod.number().int().nullable(),
+  "wordCount": zod.number().int(),
+  "paragraphCount": zod.number().int()
+}),
+  "status": zod.enum(['answered', 'not-in-document']),
+  "reason": zod.union([zod.enum(['no-evidence', 'low-confidence', 'nothing-verified']).describe('`no-evidence` - no paragraph shares a word with the question, so nothing was read and no model call was made; `nothing-verified` - passages were read but no statement about them survived the validator; `low-confidence` - the statements that survived rested too weakly on their quotes to show'),zod.null()]).describe('Set when `status` is `not-in-document`'),
+  "suggestedQuestion": zod.string().nullable().describe('The reader\'s question tidied, to take to a professional; set when `status` is `not-in-document`'),
+  "style": zod.enum(['brief', 'full']).describe('From the decision flow run in the browser - `brief` under a close deadline (one statement), `full` otherwise (up to three)'),
+  "claims": zod.array(zod.object({
+  "text": zod.string(),
+  "quote": zod.string(),
+  "source_chunk_ids": zod.array(zod.string()).min(1),
+  "location": zod.object({
+  "page": zod.number().int().nullable().describe('1-based page number; null for formats without fixed pages'),
+  "paragraph": zod.number().int().describe('1-based paragraph index within the whole document'),
+  "clause": zod.string().nullable().describe('Detected clause or section label such as "7.1", when numbering exists')
+}),
+  "confidence": zod.number().min(askDocumentResponseClaimsItemConfidenceMin).max(askDocumentResponseClaimsItemConfidenceMax),
+  "category": zod.string()
+}).describe('A statement about the document that cites the chunks it rests on; `quote` is found verbatim in a cited chunk')).max(askDocumentResponseClaimsMax).describe('The answer - statements of what the passages say, each with its quote; empty unless `answered`'),
+  "passages": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "location": zod.object({
+  "page": zod.number().int().nullable().describe('1-based page number; null for formats without fixed pages'),
+  "paragraph": zod.number().int().describe('1-based paragraph index within the whole document'),
+  "clause": zod.string().nullable().describe('Detected clause or section label such as "7.1", when numbering exists')
+})
+}).describe('A paragraph of the document, the unit every citation points at')).max(askDocumentResponsePassagesMax).describe('The paragraphs read for the question, in document order - the only text the model saw and the targets of every citation'),
+  "withheld": zod.number().int().min(askDocumentResponseWithheldMin).describe('Model statements not shown - withheld by the validator, below the confidence floor, or failing the language check')
+})
+
+

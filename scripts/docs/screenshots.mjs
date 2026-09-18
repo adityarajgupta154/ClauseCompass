@@ -6,11 +6,12 @@
  * after a screen changes.
  *
  * Drives the same journeys as the accessibility audit, with the mouse: the
- * offer letter sample through map, review and packet; the two rental
- * agreement versions through compare; the help screen; the safety screen
- * (one of the sample answers with a safety cue); the dark theme; and the
- * document map at phone width. Everything shown is synthetic: the sample
- * documents in samples/, the offline sign-in stand-in's reader.
+ * offer letter sample through map, review, two questions about it and the
+ * packet; the two rental agreement versions through compare; the help
+ * screen; the safety screen (one of the sample answers with a safety cue);
+ * the dark theme; and the document map at phone width. Everything shown is
+ * synthetic: the sample documents in samples/, the offline sign-in
+ * stand-in's reader.
  *
  *   BASE_URL=http://localhost:5173 node scripts/docs/screenshots.mjs
  *
@@ -46,6 +47,8 @@ const GIF_FRAMES = [
 /** Sticky header height at desktop width, kept clear when a frame scrolls to an element. */
 const HEADER_PX = 88;
 const SITUATION = "I have not signed yet. I want to understand the notice period and the training bond before I do.";
+/** The Ask screen's two pictures: a question the offer letter answers, then one it does not. */
+const ASK_QUESTIONS = ["What is the notice period during probation?", "Does the letter say anything about parental leave?"];
 
 for (const [tool, args] of [
   ["magick", ["-version"]],
@@ -174,6 +177,21 @@ async function singleDocument(page, { pictures }) {
   const places = page.getByTestId("button-toggle-places");
   if (await places.count()) await places.first().click();
   await shoot(page, "review", { height: 1600, focus: '[data-testid="section-review-primary"]' });
+  // The way aside: two questions about the document, one it answers and one it does not, then back through the map.
+  await page.getByTestId("link-ask-document").click();
+  await arrive(page, "/ask");
+  for (const question of ASK_QUESTIONS) {
+    await page.getByTestId("input-question").fill(question);
+    await page.getByTestId("button-ask").click();
+    await page.locator('[data-testid="text-asking"]').waitFor({ state: "detached", timeout: READY_TIMEOUT });
+  }
+  await shoot(page, "ask", { focus: '[data-testid="section-ask-thread"]' });
+  await shoot(page, "ask-not-answered", { focus: '[data-testid="text-ask-exchange"]:last-of-type' });
+  await page.getByTestId("link-back-to-map").click();
+  await arrive(page, "/map");
+  await page.getByTestId("link-continue-to-review").click();
+  await arrive(page, "/review");
+  await page.getByTestId("link-continue-to-packet").waitFor({ timeout: READY_TIMEOUT });
   await page.getByTestId("link-continue-to-packet").click();
   await arrive(page, "/packet");
   await page.getByTestId("button-print-packet").waitFor({ timeout: READY_TIMEOUT });

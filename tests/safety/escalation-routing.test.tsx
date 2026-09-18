@@ -27,7 +27,7 @@ import { signInTestReader } from "../support/auth";
  */
 
 const SESSION_ID = "sess_fixture_5_3";
-const JOURNEY_PATHS = ["/", "/upload", "/interview", "/map", "/review", "/compare", "/packet", "/nowhere-in-particular"];
+const JOURNEY_PATHS = ["/", "/upload", "/interview", "/map", "/review", "/compare", "/packet", "/ask", "/nowhere-in-particular"];
 
 type Recorded = { method: string; url: string };
 const requests: Recorded[] = [];

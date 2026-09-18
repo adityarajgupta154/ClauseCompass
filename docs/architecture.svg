@@ -24,8 +24,8 @@
 <circle cx="766" cy="170" r="12" fill="#294F99"/>
 <text x="766" y="174.5" text-anchor="middle" class="b" font-size="13" font-weight="700" fill="#fff">7</text>
 <text x="786" y="175" class="t" font-size="16" font-weight="700" fill="#1D2634">Render</text>
-<text x="756" y="194" class="b" font-size="11" font-style="italic" fill="#4B515F">/map · /review · /compare</text>
-<text x="756" y="216" class="b" font-size="12" fill="#1D2634"><tspan x="756" dy="0">each statement resolves to its chunk before</tspan><tspan x="756" dy="16">it shows; otherwise “Not shown”, never the text</tspan><tspan x="756" dy="16">every statement names its paragraph (plus page</tspan><tspan x="756" dy="16">and clause when known) and opens to the excerpt</tspan><tspan x="756" dy="16">strings render as text — no raw HTML</tspan><tspan x="756" dy="16">English / Hinglish copy, text size, read-aloud</tspan></text>
+<text x="756" y="194" class="b" font-size="11" font-style="italic" fill="#4B515F">/map · /review · /ask · /compare</text>
+<text x="756" y="216" class="b" font-size="12" fill="#1D2634"><tspan x="756" dy="0">each statement resolves to its chunk before</tspan><tspan x="756" dy="16">it shows; otherwise “Not shown”, never the text</tspan><tspan x="756" dy="16">every statement names its paragraph (plus page</tspan><tspan x="756" dy="16">and clause when known) and opens to the excerpt</tspan><tspan x="756" dy="16">/ask: a typed question, screened for safety cues</tspan><tspan x="756" dy="16">first; its answers are statements like the rest</tspan><tspan x="756" dy="16">strings render as text — no raw HTML</tspan><tspan x="756" dy="16">English / Hinglish copy, text size, read-aloud</tspan></text>
 <rect x="1080" y="146" width="300" height="198" rx="8" fill="#FFFFFF" stroke="#294F99" stroke-width="1.5"/>
 <circle cx="1106" cy="170" r="12" fill="#294F99"/>
 <text x="1106" y="174.5" text-anchor="middle" class="b" font-size="13" font-weight="700" fill="#fff">8</text>
@@ -49,7 +49,7 @@
 <text x="766" y="438.5" text-anchor="middle" class="b" font-size="13" font-weight="700" fill="#fff">5</text>
 <text x="786" y="439" class="t" font-size="16" font-weight="700" fill="#1D2634">Select evidence</text>
 <text x="756" y="458" class="b" font-size="11" font-style="italic" fill="#4B515F">on demand, per screen · deterministic · analysis/</text>
-<text x="756" y="480" class="b" font-size="12" fill="#1D2634"><tspan x="756" dy="0">clause-rule registry (5 families; regex</tspan><tspan x="756" dy="16">any / all / none; stage-aware) → review rules</tspan><tspan x="756" dy="16">and the money, duties, termination, dispute fields</tspan><tspan x="756" dy="16">dates: date detector + registry hits → field</tspan><tspan x="756" dy="16">and timeline · parties: party detector</tspan><tspan x="756" dy="16">compare: paragraph alignment + diff, phrased</tspan><tspan x="756" dy="16">per kind — no model anywhere in this step</tspan><tspan x="756" dy="16">the model will see only the selected paragraphs</tspan></text>
+<text x="756" y="480" class="b" font-size="12" fill="#1D2634"><tspan x="756" dy="0">clause-rule registry (5 families; regex</tspan><tspan x="756" dy="16">any / all / none; stage-aware) → review rules</tspan><tspan x="756" dy="16">and the money, duties, termination, dispute fields</tspan><tspan x="756" dy="16">dates: date detector + registry hits → field</tspan><tspan x="756" dy="16">and timeline · parties: party detector</tspan><tspan x="756" dy="16">compare: paragraph alignment + diff, phrased</tspan><tspan x="756" dy="16">per kind · ask: BM25 over the question's words</tspan><tspan x="756" dy="16">(lay + Hinglish synonyms) → ≤ 5 paragraphs; none</tspan><tspan x="756" dy="16">found → “does not answer this”, no model call</tspan><tspan x="756" dy="16">no model anywhere in this step; it will see</tspan><tspan x="756" dy="16">only the selected paragraphs</tspan></text>
 <rect x="1080" y="410" width="300" height="246" rx="8" fill="#FFFFFF" stroke="#B4472A" stroke-width="1.5"/>
 <circle cx="1106" cy="434" r="12" fill="#B4472A"/>
 <text x="1106" y="438.5" text-anchor="middle" class="b" font-size="13" font-weight="700" fill="#fff">6</text>
@@ -75,12 +75,12 @@
 <path d="M700 498 L740 498" fill="none" stroke="#4B515F" stroke-width="1.6" marker-end="url(#head)"/>
 <path d="M1040 498 L1080 498" fill="none" stroke="#4B515F" stroke-width="1.6" marker-end="url(#head)"/>
 <path d="M1230 656 L1230 738" fill="none" stroke="#4B515F" stroke-width="1.6" marker-end="url(#head)" marker-start="url(#head)"/>
-<text x="1242" y="668" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">one call per map field or</text>
-<text x="1242" y="681" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">rule batch with evidence,</text>
-<text x="1242" y="694" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">concurrently; one retry each</text>
+<text x="1242" y="668" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">one call per map field, rule</text>
+<text x="1242" y="681" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">batch or question, with its</text>
+<text x="1242" y="694" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">evidence; one retry each</text>
 <path d="M760 344 L760 410" fill="none" stroke="#4B515F" stroke-width="1.6" marker-end="url(#head)"/>
 <text x="772" y="364" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">POST /api/sessions/:id/</text>
-<text x="772" y="377" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">document-map · review-prompts · compare</text>
+<text x="772" y="377" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">document-map · review-prompts · ask · compare</text>
 <path d="M1130 410 L1130 366 L1010 366 L1010 344" fill="none" stroke="#4B515F" stroke-width="1.6" marker-end="url(#head)"/>
 <text x="1142" y="361" text-anchor="start" class="b" font-size="11" font-weight="500" fill="#4B515F">statements: text, quote, chunk id, location</text>
 <path d="M1010 410 L1010 366" fill="none" stroke="#4B515F" stroke-width="1.6"/>
@@ -92,15 +92,15 @@
 <circle cx="66" cy="974" r="2.5" fill="#B4472A"/>
 <text x="78" y="978" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Extraction runs inside POST /api/sessions: the client never calls a separate extract step (a stateless POST /api/documents/extract</tspan><tspan x="78" dy="15">exists, unused by the client). Only text and coordinates are kept; the uploaded bytes never reach the store.</tspan></text>
 <circle cx="66" cy="1013" r="2.5" fill="#B4472A"/>
-<text x="78" y="1017" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Retrieval is rule-driven, not free-text search. BM25 retrieval (lib/grounding) and chunk-level instruction flags (lib/rules) are built and</tspan><tspan x="78" dy="15">tested but not wired to any screen yet; there is no Q&amp;A endpoint. The prompt marks excerpts as data and the validator rejects echoes of the prompt.</tspan></text>
-<circle cx="66" cy="1052" r="2.5" fill="#B4472A"/>
-<text x="78" y="1056" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Timeline, parties, compare and all evidence selection are deterministic; the model only restates chosen excerpts. A statement that fails</tspan><tspan x="78" dy="15">validation is withheld and counted, not repaired into an answer.</tspan></text>
-<circle cx="66" cy="1091" r="2.5" fill="#B4472A"/>
-<text x="78" y="1095" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Export is a browser print / text download, always in English, not a server-rendered packet. The interview and safety decision flow run</tspan><tspan x="78" dy="15">entirely in the browser; a safety escalation asks the server to delete the session.</tspan></text>
-<circle cx="66" cy="1130" r="2.5" fill="#B4472A"/>
-<text x="78" y="1134" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">The TTL is a sliding inactivity window (each touch extends it), not a clock started at upload, and sessions live in one process's memory.</tspan></text>
-<circle cx="66" cy="1154" r="2.5" fill="#B4472A"/>
-<text x="78" y="1158" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">The validator proves each quote sits in the cited paragraph, not that the restatement follows from it; reading the excerpt is the reader's check.</tspan><tspan x="78" dy="15">Budgets, the analysis gate and the model-call cap live in one process's memory, like the sessions; no cross-origin access is granted unless CORS_ORIGINS names an origin.</tspan></text>
+<text x="78" y="1017" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Retrieval is rule-driven for the map, prompts and packet; only Ask (POST /api/sessions/:id/ask) uses BM25 retrieval (lib/grounding) over the</tspan><tspan x="78" dy="15">question's words, and the question is not stored. Chunk-level instruction flags (lib/rules) are built and tested but not wired to any screen yet.</tspan><tspan x="78" dy="15">The prompt marks excerpts and the question as data and the validator rejects echoes of the prompt.</tspan></text>
+<circle cx="66" cy="1067" r="2.5" fill="#B4472A"/>
+<text x="78" y="1071" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Timeline, parties, compare and all evidence selection are deterministic; the model only restates chosen excerpts. A statement that fails</tspan><tspan x="78" dy="15">validation is withheld and counted, not repaired into an answer.</tspan></text>
+<circle cx="66" cy="1106" r="2.5" fill="#B4472A"/>
+<text x="78" y="1110" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">Export is a browser print / text download, always in English, not a server-rendered packet. The interview and safety decision flow run</tspan><tspan x="78" dy="15">entirely in the browser; a safety escalation asks the server to delete the session.</tspan></text>
+<circle cx="66" cy="1145" r="2.5" fill="#B4472A"/>
+<text x="78" y="1149" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">The TTL is a sliding inactivity window (each touch extends it), not a clock started at upload, and sessions live in one process's memory.</tspan></text>
+<circle cx="66" cy="1169" r="2.5" fill="#B4472A"/>
+<text x="78" y="1173" class="b" font-size="12" fill="#1D2634"><tspan x="78" dy="0">The validator proves each quote sits in the cited paragraph, not that the restatement follows from it; reading the excerpt is the reader's check.</tspan><tspan x="78" dy="15">Budgets, the analysis gate and the model-call cap live in one process's memory, like the sessions; no cross-origin access is granted unless CORS_ORIGINS names an origin.</tspan></text>
 <text x="1085" y="952" class="t" font-size="17" font-weight="700" fill="#1D2634">Legend</text>
 <rect x="1085" y="967" width="14" height="14" rx="3" fill="#FFFFFF" stroke="#294F99" stroke-width="1.5"/>
 <text x="1107" y="978" class="b" font-size="12" fill="#1D2634">browser (React 19 + Vite)</text>

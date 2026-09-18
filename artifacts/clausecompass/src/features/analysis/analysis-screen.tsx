@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertCircle, ArrowLeft, FileText, LoaderCircle, RotateCcw, Upload } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, LoaderCircle, MessageCircleQuestion, RotateCcw, Upload } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SkipLink } from "@/components/skip-link";
@@ -124,7 +124,7 @@ export function AnalysisScreen<T>({ files, state, summaries, words, back, prints
 }
 
 /** The way on from an ended session: forget it here, then the upload screen, where the chosen files are still waiting. */
-function UploadAgainLink() {
+export function UploadAgainLink() {
   const { forgetSession } = useJourney();
   const [, navigate] = useLocation();
   return (
@@ -173,10 +173,26 @@ function DocumentStatus({ files, summaries, sent }: { files: File[]; summaries: 
   );
 }
 
-/** A link styled as the screen's one forward action, e.g. map → review prompts. */
-export function ContinueLink({ href, label, testId }: { href: string; label: string; testId: string }) {
+interface ScreenLink {
+  href: string;
+  label: string;
+  testId: string;
+}
+
+/** A link styled as the screen's one forward action, e.g. map → review prompts; `secondary` is the quieter way aside, e.g. to ask about the document. */
+export function ContinueLink({ href, label, testId, secondary }: ScreenLink & { secondary?: ScreenLink }) {
   return (
-    <div className="flex justify-end pt-12 print:hidden">
+    <div className="flex flex-wrap items-center justify-end gap-4 pt-12 print:hidden">
+      {secondary && (
+        <Link
+          href={secondary.href}
+          data-testid={secondary.testId}
+          className={`inline-flex min-h-[56px] items-center gap-3 rounded-2xl border-2 border-primary bg-card px-6 text-lg font-semibold text-primary transition-colors hover:bg-primary/10 ${focusRing}`}
+        >
+          <MessageCircleQuestion className="h-5 w-5" aria-hidden="true" />
+          {secondary.label}
+        </Link>
+      )}
       <Link
         href={href}
         data-testid={testId}

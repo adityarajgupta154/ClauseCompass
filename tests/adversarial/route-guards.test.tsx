@@ -164,7 +164,7 @@ describe("a signed-in reader who skipped a step", () => {
   });
 
   it("goes back to the upload screen from the steps after it when nothing was uploaded", async () => {
-    for (const path of ["/interview", "/map", "/review", "/compare", "/packet"]) {
+    for (const path of ["/interview", "/map", "/review", "/compare", "/packet", "/ask"]) {
       const page = await mount(path, { seed: false });
       expect(page.at(), path).toBe("/upload");
     }

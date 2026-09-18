@@ -39,7 +39,7 @@ function DocumentMapScreen({ file, sessionId }: { file: File; sessionId: string 
       {(data) => (
         <>
           <MapBody data={data} />
-          <ContinueLink href="/review" label={words.continueToReview} testId="link-continue-to-review" />
+          <ContinueLink href="/review" label={words.continueToReview} testId="link-continue-to-review" secondary={{ href: "/ask", label: copy.ask.link, testId: "link-ask-document" }} />
         </>
       )}
     </AnalysisScreen>

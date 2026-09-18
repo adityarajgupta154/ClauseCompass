@@ -32,6 +32,7 @@ const DocumentMapPage = lazyScreen(screens.map);
 const ReviewPromptsPage = lazyScreen(screens.review);
 const ComparePage = lazyScreen(screens.compare);
 const PacketPage = lazyScreen(screens.packet);
+const AskPage = lazyScreen(screens.ask);
 const OfficialHelpPage = lazyScreen(screens.help);
 const SignInPage = lazyScreen(screens.signIn);
 
@@ -131,6 +132,17 @@ export function JourneyRoutes() {
                   <RequireAuth>
                     <RequireDocuments>
                       <PacketPage />
+                    </RequireDocuments>
+                  </RequireAuth>
+                </RequireStage>
+              </RequireNotEscalated>
+            </Route>
+            <Route path="/ask">
+              <RequireNotEscalated>
+                <RequireStage>
+                  <RequireAuth>
+                    <RequireDocuments>
+                      <AskPage />
                     </RequireDocuments>
                   </RequireAuth>
                 </RequireStage>

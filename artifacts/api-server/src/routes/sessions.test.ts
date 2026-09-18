@@ -2,6 +2,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  AskDocumentResponse,
   CreateSessionResponse,
   GetRetentionPolicyResponse,
   GetSessionResponse,
@@ -549,6 +550,129 @@ describe("outputs prepared inside a session", () => {
     expectJsonError(await call("POST", `/sessions/${UNKNOWN_ID}/document-map`), 404, "session-not-found");
     expectJsonError(await call("POST", `/sessions/${UNKNOWN_ID}/review-prompts`), 404, "session-not-found");
     expectJsonError(await call("POST", `/sessions/${UNKNOWN_ID}/compare`), 404, "session-not-found");
+    expectJsonError(await ask(UNKNOWN_ID, { question: "what is the notice period" }), 404, "session-not-found");
+  });
+});
+
+/** One question over the JSON body, as the browser sends it. */
+async function ask(sessionId: string, body: unknown, headers: Record<string, string> | null = asReader(READER)): Promise<Result> {
+  const response = await fetch(`${baseUrl}/sessions/${sessionId}/ask`, {
+    method: "POST",
+    headers: { ...(headers ?? {}), "content-type": "application/json" },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+  const text = await response.text();
+  return { response, text, json: () => JSON.parse(text) as Record<string, unknown> };
+}
+
+describe("POST /api/sessions/:id/ask", () => {
+  it("answers a question from the document in the OpenAPI shape: every statement quotes a passage that was returned, and asking again runs again", async () => {
+    const id = await openSession(rentalUpload);
+    const calls = llm.calls;
+    const result = await ask(id, { question: "what is the notice period" });
+    expect(result.response.status, result.text).toBe(200);
+    const body = AskDocumentResponse.parse(result.json());
+
+    expect(body.document).toEqual({ kind: "txt", pageCount: null, wordCount: rental.golden.wordCount, paragraphCount: rental.golden.paragraphCount });
+    expect(body.status).toBe("answered");
+    expect(body.reason).toBeNull();
+    expect(body.suggestedQuestion).toBeNull();
+    expect(body.style).toBe("full");
+    expect(body.passages.length).toBeGreaterThan(0);
+    expect(body.passages.length).toBeLessThanOrEqual(5);
+    expect(body.passages.some((passage) => passage.location.clause === "4.2")).toBe(true);
+    expect(body.claims.length).toBeGreaterThan(0);
+    expect(body.claims.length).toBeLessThanOrEqual(3);
+    const byId = new Map(body.passages.map((passage) => [passage.id, passage]));
+    for (const claim of body.claims) {
+      const cited = claim.source_chunk_ids.map((chunkId) => byId.get(chunkId));
+      expect(cited.every(Boolean)).toBe(true);
+      expect(cited.some((passage) => passage!.text.includes(claim.quote))).toBe(true);
+      expect(claim.category).toBe("answer");
+    }
+    expect(result.text).not.toMatch(/excerpt|JSON|source_chunk_ids":\s*\[\]/i);
+    expect(llm.calls).toBe(calls + 1);
+
+    // Not a prepared output: nothing is kept, so the same question is a new call, and the session view shows no new output.
+    expect((await ask(id, { question: "what is the notice period" })).response.status).toBe(200);
+    expect(llm.calls).toBe(calls + 2);
+    const view = GetSessionResponse.parse((await call("GET", `/sessions/${id}`)).json());
+    expect(view.outputs).toEqual({ documentMap: false, reviewPrompts: false, compare: false });
+  });
+
+  it("says the document does not answer a question it has no words for, without calling the model, and hands the question back", async () => {
+    const id = await openSession(rentalUpload);
+    const calls = llm.calls;
+    const result = await ask(id, { question: "  xylophone   quantum spaceship ", style: "brief" });
+    expect(result.response.status, result.text).toBe(200);
+    const body = AskDocumentResponse.parse(result.json());
+    expect(body).toMatchObject({
+      status: "not-in-document",
+      reason: "no-evidence",
+      suggestedQuestion: "xylophone quantum spaceship?",
+      style: "brief",
+      claims: [],
+      passages: [],
+      withheld: 0,
+    });
+    expect(llm.calls).toBe(calls);
+  });
+
+  it("asks for one statement under a close deadline", async () => {
+    const id = await openSession(rentalUpload);
+    const body = AskDocumentResponse.parse((await ask(id, { question: "deposit kab wapas milega", style: "brief" })).json());
+    expect(body.status).toBe("answered");
+    expect(body.style).toBe("brief");
+    expect(body.claims).toHaveLength(1);
+  });
+
+  it("answers about the newer version of a comparison", async () => {
+    const id = await openSession(pairUpload);
+    const body = AskDocumentResponse.parse((await ask(id, { question: "what is the notice period" })).json());
+    expect(body.document.paragraphCount).toBe(rentalV2.golden.paragraphCount);
+  });
+
+  it("refuses a missing, empty, over-long or malformed question as a JSON error, before reading the document", async () => {
+    const id = await openSession(rentalUpload);
+    const calls = llm.calls;
+    expectJsonError(await ask(id, {}), 400, "bad-question");
+    expectJsonError(await ask(id, { question: "   " }), 400, "bad-question");
+    expectJsonError(await ask(id, { question: "notice ".repeat(80) }), 400, "bad-question");
+    expectJsonError(await ask(id, { question: 42 }), 400, "bad-question");
+    expectJsonError(await ask(id, { question: "notice", style: "long" }), 400, "bad-question");
+    expectJsonError(await ask(id, "{not json"), 400, "bad-request");
+    expect(llm.calls).toBe(calls);
+  });
+
+  it("takes a question of exactly the cap without end punctuation: the question mark the tidying adds is not counted against it", async () => {
+    const id = await openSession(rentalUpload);
+    const question = `what is the notice period ${"x".repeat(500)}`.slice(0, 500);
+    expect(question).toHaveLength(500);
+    expect(question.endsWith("?")).toBe(false);
+    const result = await ask(id, { question });
+    expect(result.response.status, result.text).toBe(200);
+    expect(AskDocumentResponse.parse(result.json()).status).toBe("answered");
+  });
+
+  it("is the reader's own: another reader gets the 404 of an unknown id, and no token gets 401", async () => {
+    const id = await openSession(rentalUpload);
+    expectJsonError(await ask(id, { question: "what is the notice period" }, asReader(OTHER_READER)), 404, "session-not-found");
+    expectJsonError(await ask(id, { question: "what is the notice period" }, null), 401, "auth-required");
+  });
+
+  it("is ended by a delete while the question is in flight: the model call is aborted and the answer is 404, not the document's words", async () => {
+    const id = await openSession(rentalUpload);
+    llm.hold();
+    const calls = llm.calls;
+    const inFlight = ask(id, { question: "what is the notice period" });
+    await vi.waitFor(() => expect(llm.calls).toBe(calls + 1));
+    expect((await call("DELETE", `/sessions/${id}`)).response.status).toBe(204);
+    llm.release();
+    const result = await inFlight;
+    expectJsonError(result, 404, "session-not-found");
+    expect(result.text).not.toMatch(/fifteen days|claims":\s*\[\{/);
+    const { getInFlight } = await import("../sessions");
+    expect(getInFlight().size).toBe(0);
   });
 });
 

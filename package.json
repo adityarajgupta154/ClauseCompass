@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "a11y": "node scripts/a11y/journey.mjs",
+    "eval:ask": "pnpm --filter @workspace/scripts exec tsx ../tests/eval/ask.eval.ts",
     "preflight": "sh scripts/preflight.sh",
     "check:size": "sh scripts/check-repo-size.sh",
     "check:client-secrets": "sh scripts/check-client-bundle.sh"

@@ -118,12 +118,14 @@ box({
 });
 box({
   x: COL[2], y: BY, h: BH, n: 7, color: TIME,
-  title: "Render", sub: "/map · /review · /compare",
+  title: "Render", sub: "/map · /review · /ask · /compare",
   lines: [
     "each statement resolves to its chunk before",
     "it shows; otherwise “Not shown”, never the text",
     "every statement names its paragraph (plus page",
     "and clause when known) and opens to the excerpt",
+    "/ask: a typed question, screened for safety cues",
+    "first; its answers are statements like the rest",
     "strings render as text — no raw HTML",
     "English / Hinglish copy, text size, read-aloud",
   ],
@@ -184,8 +186,11 @@ box({
     "dates: date detector + registry hits → field",
     "and timeline · parties: party detector",
     "compare: paragraph alignment + diff, phrased",
-    "per kind — no model anywhere in this step",
-    "the model will see only the selected paragraphs",
+    "per kind · ask: BM25 over the question's words",
+    "(lay + Hinglish synonyms) → ≤ 5 paragraphs; none",
+    "found → “does not answer this”, no model call",
+    "no model anywhere in this step; it will see",
+    "only the selected paragraphs",
   ],
 });
 box({
@@ -243,12 +248,12 @@ label(492, AY + AH + 28, "text + page / paragraph");
 arrow([[COL[1] + BOX_W, AY + 88], [COL[2], AY + 88]]); // 4 → 5
 arrow([[COL[2] + BOX_W, AY + 88], [COL[3], AY + 88]]); // 5 → 6
 arrow([[1230, AY + AH], [1230, LY]], { both: true }); // 6 ↔ model
-label(1242, AY + AH + 12, "one call per map field or");
-label(1242, AY + AH + 25, "rule batch with evidence,");
-label(1242, AY + AH + 38, "concurrently; one retry each");
+label(1242, AY + AH + 12, "one call per map field, rule");
+label(1242, AY + AH + 25, "batch or question, with its");
+label(1242, AY + AH + 38, "evidence; one retry each");
 arrow([[760, BY + BH], [760, AY]]); // 7 → 5 (prepare)
 label(772, BY + BH + 20, "POST /api/sessions/:id/");
-label(772, BY + BH + 33, "document-map · review-prompts · compare");
+label(772, BY + BH + 33, "document-map · review-prompts · ask · compare");
 arrow([[1130, AY], [1130, API.y - 4], [1010, API.y - 4], [1010, BY + BH]]); // 6 → 7 (response)
 label(1142, API.y - 9, "statements: text, quote, chunk id, location");
 add(`<path d="M1010 ${AY} L1010 ${API.y - 4}" fill="none" stroke="${MUTED}" stroke-width="1.6"/>`); // 5 → 7 joins the response
@@ -262,7 +267,7 @@ const NY = LOWER.y + LOWER.h + 34;
 add(`<text x="60" y="${NY}" class="t" font-size="17" font-weight="700" fill="${INK}">Where the build differs from PRD §7.2</text>`);
 const notes = [
   ["Extraction runs inside POST /api/sessions: the client never calls a separate extract step (a stateless POST /api/documents/extract", "exists, unused by the client). Only text and coordinates are kept; the uploaded bytes never reach the store."],
-  ["Retrieval is rule-driven, not free-text search. BM25 retrieval (lib/grounding) and chunk-level instruction flags (lib/rules) are built and", "tested but not wired to any screen yet; there is no Q&A endpoint. The prompt marks excerpts as data and the validator rejects echoes of the prompt."],
+  ["Retrieval is rule-driven for the map, prompts and packet; only Ask (POST /api/sessions/:id/ask) uses BM25 retrieval (lib/grounding) over the", "question's words, and the question is not stored. Chunk-level instruction flags (lib/rules) are built and tested but not wired to any screen yet.", "The prompt marks excerpts and the question as data and the validator rejects echoes of the prompt."],
   ["Timeline, parties, compare and all evidence selection are deterministic; the model only restates chosen excerpts. A statement that fails", "validation is withheld and counted, not repaired into an answer."],
   ["Export is a browser print / text download, always in English, not a server-rendered packet. The interview and safety decision flow run", "entirely in the browser; a safety escalation asks the server to delete the session."],
   ["The TTL is a sliding inactivity window (each touch extends it), not a clock started at upload, and sessions live in one process's memory."],

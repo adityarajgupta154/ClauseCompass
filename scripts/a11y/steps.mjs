@@ -204,6 +204,28 @@ async function singleDocument(page, auditor) {
   }
   await auditor.screen("review-expanded");
 
+  // The way aside: ask about the document, one typed question and one sample, then back to the review prompts through the map.
+  await pressAndExpect(page, auditor, "link-ask-document", "Enter", "/ask");
+  await focusAfterNavigation(page, auditor, "ask");
+  await checkSkipLink(page, auditor, "ask");
+  await auditor.screen("ask-ready");
+  await tabTo(page, auditor, "input-question");
+  await page.keyboard.type("What is the notice period?");
+  await pressAndExpect(page, auditor, "button-ask", "Enter", "/ask");
+  await page.waitForSelector('[data-testid="text-answer"], [data-testid="text-not-in-document"]', { state: "visible", timeout: READY_TIMEOUT });
+  await auditor.screen("ask-answered");
+  await tabTo(page, auditor, "button-sample-question-1");
+  await page.keyboard.press("Enter");
+  const filled = await page.$eval('[data-testid="input-question"]', (field) => field.value);
+  if (filled === "") auditor.problem("sample-question-not-filled", { screen: "ask-answered" });
+  await pressAndExpect(page, auditor, "button-ask", "Enter", "/ask");
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="text-ask-exchange"]').length === 2 && !document.querySelector('[data-testid="text-asking"]'), null, { timeout: READY_TIMEOUT });
+  await auditor.screen("ask-two-questions");
+  await pressAndExpect(page, auditor, "link-back-to-map", "Enter", "/map");
+  await visible(page, "link-continue-to-review", READY_TIMEOUT);
+  await pressAndExpect(page, auditor, "link-continue-to-review", "Enter", "/review");
+  await visible(page, "link-continue-to-packet", READY_TIMEOUT);
+
   await pressAndExpect(page, auditor, "link-continue-to-packet", "Enter", "/packet");
   await focusAfterNavigation(page, auditor, "packet");
   await visible(page, "button-print-packet", READY_TIMEOUT);

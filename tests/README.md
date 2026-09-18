@@ -4,8 +4,8 @@ Cross-package test suites, run with one command from the repo root: `pnpm test` 
 
 Unit tests live next to the code they cover (`*.test.ts` inside each package). This folder holds the suites that span packages:
 
-- golden runs over the synthetic documents in `samples/` (expected clause hits, dates, escalation states), and `tests/golden/pipeline.test.ts`, the whole pipeline over HTTP (below)
-- adversarial cases: prompt injection inside documents, XSS payloads, hostile uploads, safety-escalation routing, route guards, a second reader on the same browser, a double-pressed sign-in
+- golden runs over the synthetic documents in `samples/` (expected clause hits, dates, escalation states), `tests/golden/questions.ts` + `ask.test.ts` (questions about the documents: the clause each answer must come from, or that it must be refused), and `tests/golden/pipeline.test.ts`, the whole pipeline over HTTP (below)
+- adversarial cases: prompt injection inside documents, XSS payloads, hostile uploads, safety-escalation routing, route guards, a second reader on the same browser, a double-pressed sign-in, the ask screen (`ask-screen.test.tsx`: a safety cue in a question, a statement citing a passage the API did not send, a model outage, a lost session)
 - schema-rejection cases: malformed or uncited model output must be refused, never rendered
 - accessibility checks: `tests/a11y/` pins the route-level behaviour (focus on route change), the display controls (the language toggle leaves every statement and excerpt byte-identical, text size scales and persists, read-aloud speaks and stops through a stubbed `speechSynthesis`) and what the whole-screen read-aloud says (never a withheld statement) in a DOM; the keyboard-only journey and the axe scan run against a real browser with `pnpm a11y` (below)
 
@@ -17,16 +17,16 @@ All suites run offline against the mock LLM adapter; no test may call a hosted m
 
 ```
  Test layers (PRD §12)
-  ✓ Golden documents    7 files    69 tests  passed
-  ✓ Adversarial         9 files   105 tests  passed
+  ✓ Golden documents    8 files    78 tests  passed
+  ✓ Adversarial        10 files   119 tests  passed
   ✓ Accessibility       6 files    34 tests  passed
   ✓ Schema              6 files    63 tests  passed
-  ✓ Integration        14 files   171 tests  passed
-  ✓ Unit               38 files   547 tests  passed
-  all layers passed · 80 files · 989 tests · 49.1s
+  ✓ Integration        14 files   179 tests  passed
+  ✓ Unit               39 files   563 tests  passed
+  all layers passed · 83 files · 1036 tests · 47.8s
 ```
 
-(The run of 17 September 2026.) `pnpm test:coverage` is the same run under V8 coverage of the product code, with a text summary at the end and an HTML report in `coverage/` (git-ignored); the include and exclude lists are in the root `vitest.config.ts`. `pnpm preflight` runs the build, this suite, the client secret scan and the repo-size ceiling in one go, and `.github/workflows/ci.yml` runs the same four steps on GitHub.
+(The run of 18 September 2026.) `pnpm test:coverage` is the same run under V8 coverage of the product code, with a text summary at the end and an HTML report in `coverage/` (git-ignored); the include and exclude lists are in the root `vitest.config.ts`. `pnpm preflight` runs the build, this suite, the client secret scan and the repo-size ceiling in one go, and `.github/workflows/ci.yml` runs the same four steps on GitHub.
 
 Which layer a file belongs to is decided in one place, `scripts/test/layers.ts`: an ordered table of directories and single files, first match wins, `unit` is the catch-all. The vitest include/exclude globs and the reporter (`scripts/test/layer-summary.ts`) are derived from that table, and `tests/support/layers.test.ts` walks the disk to check that every test file resolves to a layer and every layer has files, because a file that matched no project would otherwise never run and nothing would say so. Layers that need more than a path: `lib/rules/src/untrusted.test.ts` (instruction-like document text) is adversarial although it sits beside the rules' unit tests, and the model adapters under `api-server/src/llm/` are schema tests because what they check is that model output is validated, retried and refused before anything is rendered. A failing layer shows `×` and vitest exits 1; `pnpm test -- <path>` filters as usual and the layers it skips show as "no files in this run".
 

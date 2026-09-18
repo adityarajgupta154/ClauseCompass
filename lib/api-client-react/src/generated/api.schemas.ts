@@ -518,6 +518,75 @@ export interface CompareResponse {
   byKind: CompareResponseByKind;
 }
 
+/**
+ * From the decision flow run in the browser - `brief` under a close deadline (one statement), `full` otherwise (up to three)
+ */
+export type AnswerStyle = typeof AnswerStyle[keyof typeof AnswerStyle];
+
+
+export const AnswerStyle = {
+  brief: 'brief',
+  full: 'full',
+} as const;
+
+export interface Question {
+  /**
+     * The reader's question in their own words, English or Hinglish; sent to the model as quoted data, never as an instruction
+     * @minLength 1
+     * @maxLength 500
+     */
+  question: string;
+  style?: AnswerStyle;
+}
+
+export type AskStatus = typeof AskStatus[keyof typeof AskStatus];
+
+
+export const AskStatus = {
+  answered: 'answered',
+  'not-in-document': 'not-in-document',
+} as const;
+
+/**
+ * `no-evidence` - no paragraph shares a word with the question, so nothing was read and no model call was made; `nothing-verified` - passages were read but no statement about them survived the validator; `low-confidence` - the statements that survived rested too weakly on their quotes to show
+ */
+export type NoAnswerReason = typeof NoAnswerReason[keyof typeof NoAnswerReason];
+
+
+export const NoAnswerReason = {
+  'no-evidence': 'no-evidence',
+  'low-confidence': 'low-confidence',
+  'nothing-verified': 'nothing-verified',
+} as const;
+
+export interface AskResponse {
+  document: AnalysedDocument;
+  status: AskStatus;
+  /** Set when `status` is `not-in-document` */
+  reason: NoAnswerReason | null;
+  /**
+     * The reader's question tidied, to take to a professional; set when `status` is `not-in-document`
+     * @nullable
+     */
+  suggestedQuestion: string | null;
+  style: AnswerStyle;
+  /**
+     * The answer - statements of what the passages say, each with its quote; empty unless `answered`
+     * @maxItems 3
+     */
+  claims: GroundedClaim[];
+  /**
+     * The paragraphs read for the question, in document order - the only text the model saw and the targets of every citation
+     * @maxItems 5
+     */
+  passages: SourceChunk[];
+  /**
+     * Model statements not shown - withheld by the validator, below the confidence floor, or failing the language check
+     * @minimum 0
+     */
+  withheld: number;
+}
+
 export interface ErrorDetail {
   /** Stable machine-readable reason, e.g. `encrypted`, `malformed`, `too-large` */
   code: string;

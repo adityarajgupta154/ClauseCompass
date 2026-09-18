@@ -8,6 +8,9 @@
 
 export * from './analysedDocument';
 export * from './analysedDocumentKind';
+export * from './answerStyle';
+export * from './askResponse';
+export * from './askStatus';
 export * from './change';
 export * from './changeKind';
 export * from './changeSide';
@@ -38,6 +41,8 @@ export * from './mapField';
 export * from './mapFieldId';
 export * from './mapFieldReason';
 export * from './mapFieldStatus';
+export * from './noAnswerReason';
+export * from './question';
 export * from './retentionPolicy';
 export * from './reviewPrompt';
 export * from './reviewPromptAbsence';

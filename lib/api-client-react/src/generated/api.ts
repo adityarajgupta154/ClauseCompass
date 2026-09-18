@@ -20,12 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AskResponse,
   CompareResponse,
   DocumentMapResponse,
   DocumentUpload,
   ErrorResponse,
   ExtractedDocument,
   HealthStatus,
+  Question,
   RetentionPolicy,
   ReviewPromptsResponse,
   Session,
@@ -757,5 +759,95 @@ export const usePrepareComparison = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getPrepareComparisonMutationOptions(options));
+    }
+
+export const getAskDocumentUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}/ask`
+}
+
+/**
+ * Answers the reader's question from the session's document (the newer version for a comparison) or says that the document does not answer it. The paragraphs that share the question's words are retrieved (a handful at most, returned as `passages`) and are the only text the model reads; the answer is one to three statements of what those passages say, each quoting a passage word for word, kept only when the validator finds the quote in the passage it cites and the statement is confident and in a factual register. The check is on the quote, which is shown with the statement so the reader can see what it rests on; whether the statement says more than its quote is for the reader to judge from that quote. No passage, nothing verified, or only weakly supported statements is `not-in-document`, with the reader's question handed back to take to a lawyer or a legal-aid service. Each question is one model call, plus one retry when the first reply fails validation; nothing about it is kept on the server, so the same question asked again runs again, and a question in flight when the session is deleted ends as 404.
+ * @summary Answer one question from the session's document
+ */
+export const askDocument = async (sessionId: string,
+    question: Question, options?: Parameters<typeof customFetch>[1]): Promise<AskResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AskResponse>(getAskDocumentUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(question)
+  }
+);}
+
+
+
+
+
+export const getAskDocumentMutationKey = () => ['askDocument'] as const;
+
+export const getAskDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askDocument>>, TError,AskDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askDocument>>, TError,AskDocumentMutationVariables, TContext> => {
+
+const mutationKey = getAskDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askDocument>>, AskDocumentMutationVariables> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  askDocument(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof askDocument>>>
+    export type AskDocumentMutationBody = BodyType<Question>
+    export type AskDocumentMutationError = ErrorType<ErrorResponse>
+    export type AskDocumentMutationVariables = {sessionId: string;data: BodyType<Question>}
+
+    /**
+ * @summary Answer one question from the session's document
+ */
+export const useAskDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askDocument>>, TError,AskDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof askDocument>>,
+        TError,
+        AskDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskDocumentMutationOptions(options));
     }
 

@@ -50,6 +50,8 @@ function screenTitle(location: string): string | null {
       return copy.compare.heading;
     case "/packet":
       return copy.packet.heading;
+    case "/ask":
+      return copy.ask.heading;
     case "/help":
       return copy.resources.heading;
     case "/safety":

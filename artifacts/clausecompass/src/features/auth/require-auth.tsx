@@ -12,7 +12,7 @@ import { useAuth } from "./auth-context";
  */
 
 /** The screens sign-in may return to: the gated ones, and no address a link could smuggle in. */
-export const GATED_PATHS = ["/upload", "/interview", "/map", "/review", "/compare", "/packet"] as const;
+export const GATED_PATHS = ["/upload", "/interview", "/map", "/review", "/compare", "/packet", "/ask"] as const;
 
 export type GatedPath = (typeof GATED_PATHS)[number];
 

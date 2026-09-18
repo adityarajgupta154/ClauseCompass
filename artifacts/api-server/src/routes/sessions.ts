@@ -1,5 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
+  AskDocumentBody,
+  AskDocumentResponse,
   CreateSessionResponse,
   GetRetentionPolicyResponse,
   GetSessionResponse,
@@ -8,7 +10,16 @@ import {
   PrepareReviewPromptsResponse,
 } from "@workspace/api-zod";
 import { DOCUMENT_TYPES, isDocumentTypeId, isStageId, STAGE_IDS, type StageId } from "@workspace/rules";
-import { AlignmentTooLargeError, analyzeDocument, analyzeReviewPrompts, compareDocuments, toSourceChunks } from "../analysis";
+import {
+  AlignmentTooLargeError,
+  analyzeDocument,
+  analyzeReviewPrompts,
+  askDocument,
+  compareDocuments,
+  MAX_QUESTION_CHARS,
+  QuestionTooLongError,
+  toSourceChunks,
+} from "../analysis";
 import { requireUser, userOf } from "../auth";
 import { extractDocumentIsolated, isExtractionError, type ExtractedDocument } from "../extraction";
 import { getConfig } from "../lib/config";
@@ -453,6 +464,62 @@ router.post("/sessions/:sessionId/compare", heavyBudget, admitAnalysis, async (r
     complete.compare,
   );
   res.json(output);
+});
+
+/** How long a reader is asked to wait before asking again when the model could not be reached. */
+const MODEL_RETRY_AFTER_SECONDS = 30;
+
+/**
+ * POST /api/sessions/:sessionId/ask — one question about the session's
+ * document, answered from its paragraphs or not at all (analysis/ask.ts).
+ * Not a prepared output: nothing is kept for it in the session, the same
+ * question asked twice runs twice, and two questions run side by side. The
+ * model call is aborted when the client goes away (the disconnect signal)
+ * and when the session is deleted meanwhile (the session's in-flight
+ * signal, the one the prepared outputs run under); a delete on another
+ * instance, or an expiry, is caught by looking the session up again before
+ * the answer is sent, so an answer never follows the document out of the
+ * door. The question is read from the JSON body, checked for shape and
+ * length, and travels to the model as quoted data; it is not logged, and
+ * appears in the response only as the question handed back to take to a
+ * professional.
+ */
+router.post("/sessions/:sessionId/ask", heavyBudget, admitAnalysis, async (req, res) => {
+  const session = await findSession(req);
+  const parsed = AskDocumentBody.safeParse(req.body);
+  if (!parsed.success || parsed.data.question.trim() === "") {
+    throw new ApiError(400, "bad-question", `Send \`question\` as text of 1 to ${MAX_QUESTION_CHARS} characters, and \`style\` (optional) as brief or full.`);
+  }
+  const held = documentOf(session);
+  const disconnected = disconnectSignal(res);
+  let deleted = false;
+  let answer;
+  try {
+    answer = await getInFlight().run(session.id, (sessionSignal) => {
+      sessionSignal.addEventListener("abort", () => (deleted = true), { once: true });
+      return askDocument(toSourceChunks(held.document), parsed.data.question, {
+        provider: getLlmProvider(),
+        model: getConfig().llm.model,
+        style: parsed.data.style,
+        log: req.log,
+        signal: AbortSignal.any([disconnected, sessionSignal]),
+      });
+    });
+  } catch (error) {
+    if (error instanceof QuestionTooLongError) {
+      throw new ApiError(400, "bad-question", `The question is longer than ${MAX_QUESTION_CHARS} characters once tidied. Ask it in fewer words.`, { cause: error });
+    }
+    if (deleted) throw sessionGone(error);
+    throw error;
+  }
+  if (disconnected.aborted) return;
+  if (deleted || !(await getSessionStore().has(session.id))) throw sessionGone();
+  if (answer.status === "model-unavailable") {
+    res.set("Retry-After", String(MODEL_RETRY_AFTER_SECONDS));
+    throw new ApiError(503, "model-unavailable", "The plain-language service could not be reached, so this question was not answered. Nothing was guessed in its place; try again in a moment.");
+  }
+  const { status, reason, suggestedQuestion, style, claims, passages, withheld } = answer;
+  res.json(AskDocumentResponse.parse({ document: describeDocument(held.document), status, reason, suggestedQuestion, style, claims, passages, withheld }));
 });
 
 export default router;
